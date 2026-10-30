@@ -8,19 +8,19 @@ Follow this exact JSON schema:
       "id": "block_1",
       "type": "heading",
       "text": "BIOLOGY GRADE 11, UNIT FIVE: THE HUMAN BODY SYSTEMS",
-      "audio_file": "audio/page179_block1.mp3",
+      "audio_file": "audio/page179_block1.wav",
       "audio_hyperlinks": []
     },
     {
       "id": "block_2",
       "type": "activity",
       "text": "Lab-based activity 5.1: Laboratory works. Objectives: observe and identify three cell types...",
-      "audio_file": "audio/page179_block2.mp3",
+      "audio_file": "audio/page179_block2.wav",
       "audio_hyperlinks": [
         {
           "term": "wet mounting",
           "explanation": "A glass slide holding a liquid specimen covered with a cover slip.",
-          "audio_file": "audio/page179_block2_link1.mp3"
+          "audio_file": "audio/page179_block2_link1.wav"
         }
       ]
     },
@@ -28,12 +28,12 @@ Follow this exact JSON schema:
       "id": "block_3",
       "type": "paragraph",
       "text": "The cell membrane regulates the movement of substances.",
-      "audio_file": "audio/page179_block3.mp3",
+      "audio_file": "audio/page179_block3.wav",
       "audio_hyperlinks": [
         {
           "term": "cell membrane",
           "explanation": "A biological membrane that separates the interior of all cells.",
-          "audio_file": "audio/page179_block3_link1.mp3"
+          "audio_file": "audio/page179_block3_link1.wav"
         }
       ]
     },
@@ -42,7 +42,7 @@ Follow this exact JSON schema:
       "type": "sidebar",
       "context_title": "Self-Check Question",
       "text": "What are mechanisms of action?",
-      "audio_file": "audio/page179_block4.mp3",
+      "audio_file": "audio/page179_block4.wav",
       "audio_hyperlinks": []
     }
   ]
@@ -52,6 +52,6 @@ Rules:
 1. Detect logical reading order: if there is a sidebar, breakout box, or activity box, place it where it naturally interrupts or complements the flow, rather than reading it blindly across columns.
 2. Classify the "type" field accurately as one of the following: "heading", "subheading", "paragraph", "sidebar", or "activity".
 3. Identify key scientific terms in the text and generate a concise, clear explanation for them to serve as a voice hyperlink.
-4. For every block, generate a unique "audio_file" path string matching the pattern "audio/page{page_number}_block{N}.mp3".
-5. For every audio_hyperlink item, generate a corresponding "audio_file" path string matching the pattern "audio/page{page_number}_block{N}_link{M}.mp3".
+4. For every block, generate a unique "audio_file" path string matching the pattern "audio/page{page_number}_block{N}.wav".
+5. For every audio_hyperlink item, generate a corresponding "audio_file" path string matching the pattern "audio/page{page_number}_block{N}_link{M}.wav".
 6. Return ONLY valid JSON, with no markdown code block formatting wrappers if possible, or clean parseable JSON.
