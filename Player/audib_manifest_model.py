@@ -2,6 +2,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 class AudioHyperlink(BaseModel):
+    id: str
     term: str
     explanation: str
     audio_file: str
@@ -20,3 +21,9 @@ class Block(BaseModel):
 class PageData(BaseModel):
     page_number: int
     reading_flow: List[Block]
+
+class TextID(BaseModel):
+    page_number: int
+    block_id: str
+    # Optional field:
+    link_id: Optional[str] = None

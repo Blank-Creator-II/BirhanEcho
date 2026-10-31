@@ -8,19 +8,20 @@ Follow this exact JSON schema:
       "id": "block_1",
       "type": "heading",
       "text": "BIOLOGY GRADE 11, UNIT FIVE: THE HUMAN BODY SYSTEMS",
-      "audio_file": "audio/page179_block1.wav",
+      "audio_file": "page179_block_1.wav",
       "audio_hyperlinks": []
     },
     {
       "id": "block_2",
       "type": "activity",
       "text": "Lab-based activity 5.1: Laboratory works. Objectives: observe and identify three cell types...",
-      "audio_file": "audio/page179_block2.wav",
+      "audio_file": "page179_block_2.wav",
       "audio_hyperlinks": [
         {
+          "id": "link_1",
           "term": "wet mounting",
           "explanation": "A glass slide holding a liquid specimen covered with a cover slip.",
-          "audio_file": "audio/page179_block2_link1.wav"
+          "audio_file": "page179_block_2_link_1.wav"
         }
       ]
     },
@@ -28,12 +29,13 @@ Follow this exact JSON schema:
       "id": "block_3",
       "type": "paragraph",
       "text": "The cell membrane regulates the movement of substances.",
-      "audio_file": "audio/page179_block3.wav",
+      "audio_file": "page179_block_3.wav",
       "audio_hyperlinks": [
         {
+          "id": "link_1",
           "term": "cell membrane",
           "explanation": "A biological membrane that separates the interior of all cells.",
-          "audio_file": "audio/page179_block3_link1.wav"
+          "audio_file": "page179_block_3_link_1.wav"
         }
       ]
     },
@@ -42,7 +44,22 @@ Follow this exact JSON schema:
       "type": "sidebar",
       "context_title": "Self-Check Question",
       "text": "What are mechanisms of action?",
-      "audio_file": "audio/page179_block4.wav",
+      "audio_file": "page179_block_4.wav",
+      "audio_hyperlinks": []
+    },
+    {
+      "id": "block_5",
+      "type": "diagram",
+      "context_title": "Figure 5.2: Animal Cell Structure",
+      "text": "A detailed illustration showing the outer cell membrane enclosing the cytoplasm, mitochondria, and central nucleus.",
+      "audio_file": "page179_block_5.wav",
+      "audio_hyperlinks": []
+    },
+    {
+      "id": "block_6",
+      "type": "equation",
+      "text": "Rate of diffusion equals permeability multiplied by the concentration gradient.",
+      "audio_file": "page179_block_6.wav",
       "audio_hyperlinks": []
     }
   ]
@@ -50,8 +67,10 @@ Follow this exact JSON schema:
 
 Rules:
 1. Detect logical reading order: if there is a sidebar, breakout box, or activity box, place it where it naturally interrupts or complements the flow, rather than reading it blindly across columns.
-2. Classify the "type" field accurately as one of the following: "heading", "subheading", "paragraph", "sidebar", or "activity".
-3. Identify key scientific terms in the text and generate a concise, clear explanation for them to serve as a voice hyperlink.
-4. For every block, generate a unique "audio_file" path string matching the pattern "audio/page{page_number}_block{N}.wav".
-5. For every audio_hyperlink item, generate a corresponding "audio_file" path string matching the pattern "audio/page{page_number}_block{N}_link{M}.wav".
-6. Return ONLY valid JSON, with no markdown code block formatting wrappers if possible, or clean parseable JSON.
+2. Classify the "type" field accurately as one of the following: "heading", "subheading", "paragraph", "sidebar", "activity", "diagram", "graph", or "equation".
+3. For visual elements like "diagram" and "graph", provide a rich, descriptive audio-friendly alt-text description in the "text" field so a visually impaired student fully understands the visual layout, labels, and data trends.
+4. For "equation" types, translate mathematical symbols and formulas into clear, spoken descriptive language in the "text" field.
+5. Identify key scientific terms in the text and generate a concise, clear explanation for them to serve as a voice hyperlink.
+6. For every block, generate a unique "audio_file" path string matching the pattern "page{page_number}_block_{N}.wav".
+7. For every audio_hyperlink item, generate a corresponding "audio_file" path string matching the pattern "page{page_number}_block_{N}_link_{M}.wav".
+8. Return ONLY valid JSON, with no markdown code block formatting wrappers if possible, or clean parseable JSON.
