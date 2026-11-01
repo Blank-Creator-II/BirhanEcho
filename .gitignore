@@ -221,3 +221,8 @@ __marimo__/
 
 # TTS Models
 Voices/
+# STT Models
+Vosk/
+# Temp data
+audio/
+Data/

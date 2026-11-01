@@ -1,23 +1,14 @@
 import time
 from pathlib import Path
-from Player.voice_manager import generate_voice
-from Player.audib_manager import generate_audib
-from Player.audio_manager import AudioController
+from cardinal_system import Cardinal
 
 if __name__ == "__main__":
     json_path = Path("Book", "1", "189.json")
 
-    """
-    generate_voice(json_path)
-    generate_audib("test.audib", json_path, Path("audio"))
+    #cardinal = Cardinal()
+    #cardinal.initialize_speech_receiver()
+    #cardinal.create_audib(json_path)
+    #cardinal.load_audib(Path("Data", "Placeholder.audib"))
+    #cardinal.initialize_audio()
+
     
-    controller = AudioController()
-    controller.play(Path("test.audib"),5)
-    time.sleep(3)
-    controller.pause()
-    time.sleep(4)
-    controller.resume()
-    time.sleep(7)
-    controller.replay()
-    time.sleep(10)
-    """
