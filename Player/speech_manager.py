@@ -7,6 +7,7 @@ from pathlib import Path
 from vosk import Model, KaldiRecognizer
 from Player.audio_manager import AudioController
 from typing import TYPE_CHECKING
+from cardinal_state import CardinalState
 
 if TYPE_CHECKING:
     from cardinal_system import Cardinal
@@ -18,29 +19,45 @@ model = Model(model_path)
 
 # command list
 allowed_commands = [
+    # system & global commands
     "command exit",
+    "command help",
+    "command repeat",
+    "command go back",
 
-    "command repeat", 
+    # menu & configuration choices
+    "command list books",
+    "command upload",
+    "command options",
+    "command change voice",
+    "command change speed",
+
+    # book session flow
+    "command resume",
+    "command start over",
+
+    # playback controls
     "command stop", 
     "command pause",
-
     "command play", 
     "command continue",
 
+    # reader navigation & context
     "command explain more",
-
     "command jump forward",
     "command go forward",
-
     "command jump backward",
     "command go backward", 
-
-    "command move to page",
-    "[unk]"  # if unknown word
+    "command move page",
+    
+    "[unk]"  # Unknown word catch-all for Vosk grammar constraint
 ]
 
-# Vosk expects a JSON string array for grammar constraint aka the commands
-recognizer = KaldiRecognizer(model, 16000, json.dumps(allowed_commands))
+# constrained recognizer for system commands
+command_recognizer = KaldiRecognizer(model, 16000, json.dumps(allowed_commands))
+
+# open recognizer for numeric inputs
+number_recognizer = KaldiRecognizer(model, 16000)
 
 _queue = queue.Queue()
 
@@ -49,6 +66,13 @@ def audio_receiver(indata, frames, time, status): # captures microphone input.
         log.warning(f"Audio status warning: {status}", flush=True)
 
     _queue.put(bytes(indata))
+
+def clear_audio_queue():
+    while not _queue.empty():
+        try:
+            _queue.get_nowait()
+        except queue.Empty:
+            break
 
 def listen_for_commands(cardinal: "Cardinal", stop_event: threading.Event):
     sample_rate = 16000  # needs 16kHz audio
@@ -67,8 +91,14 @@ def listen_for_commands(cardinal: "Cardinal", stop_event: threading.Event):
                     if stop_event.is_set():
                         break
 
-                    if recognizer.AcceptWaveform(data):
-                        result = json.loads(recognizer.Result())
+                    # Select recognizer instance based on current Cardinal state
+                    if cardinal.state == CardinalState.WAITING_FOR_NUMBER:
+                        active_recognizer = number_recognizer
+                    else:
+                        active_recognizer = command_recognizer
+
+                    if active_recognizer.AcceptWaveform(data):
+                        result = json.loads(active_recognizer.Result())
                         text = result.get("text", "").strip()
                         
                         if text and text != "[unk]":

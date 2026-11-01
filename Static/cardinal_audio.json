@@ -1,0 +1,71 @@
+{
+    "metadata": {
+        "version": "1.2",
+        "language": "en"
+    },
+    "system_prompts": {
+        "app_greet": "Greetings. This app is fully voice-controlled. To execute any action, start your speech with the word command. For example, say command, followed by help to hear available commands, or say command, followed by list books to get started.",
+        "help_general": "To repeat the current speech, say command, followed by repeat. To return to the previous menu, say command, followed by go back. To close the application, say command, followed by exit.",
+        "not_implemented": "This feature is coming soon. Let's go back.",
+        "number": "Please provide the number.",
+        "replaying": "Replaying from the last checkpoint.",
+        "exit_app": "Exiting the app. Have a wonderful day!"
+    },
+    "book_session": {
+        "resume_prompt": "Book loaded. I have found a previous reading session. To continue where you left off, say command, followed by resume. To start from the beginning of the book, say command, followed by start over.",
+        "help_active_reader": "Active reader help. To control playback, say command, followed by pause, play, or stop. To navigate, say command, followed by go forward, go back, or explain more. To hear this again, say command, followed by repeat.",
+        "audio_hyperlink_started": "Explaining key terms.",
+        "no_audio_hyperlink": "There are no additional explanations detected for the current text.",
+        "page_moved": "Moving to the page."
+    },
+    "menus": {
+        "main_menu": {
+            "intro": "Main Menu. Please choose an option by saying command, followed by the number or title.",
+            "help": "Say command, followed by list books to browse textbooks, command, followed by upload to add new materials, command, followed by options for settings, or command, followed by exit to quit.",
+            "options": [
+                {
+                    "id": "1",
+                    "command_alias": "command list books",
+                    "spoken_text": "Option 1: List all available books.",
+                    "action": "load_books_menu"
+                },
+                {
+                    "id": "2",
+                    "command_alias": "command upload",
+                    "spoken_text": "Option 2: Upload a book or audib data.",
+                    "action": "upload_menu"
+                },
+                {
+                    "id": "3",
+                    "command_alias": "command options",
+                    "spoken_text": "Option 3: Main app options and settings.",
+                    "action": "options_menu"
+                },
+                {
+                    "id": "4",
+                    "command_alias": "command exit",
+                    "spoken_text": "Option 4: Exit the application.",
+                    "action": "exit_app"
+                }
+            ]
+        },
+        "options_menu": {
+            "intro": "Settings Menu. Choose an option to change.",
+            "help": "Say command, followed by change voice, or command, followed by change speed.",
+            "options": [
+                {
+                    "id": "1",
+                    "command_alias": "command change voice",
+                    "spoken_text": "Option 1: Change speech voice model.",
+                    "action": "setting_change_voice"
+                },
+                {
+                    "id": "2",
+                    "command_alias": "command change speed",
+                    "spoken_text": "Option 2: Change speech speed. Note that this requires an app restart.",
+                    "action": "setting_change_speed"
+                }
+            ]
+        }
+    }
+}

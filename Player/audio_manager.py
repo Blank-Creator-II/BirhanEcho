@@ -3,7 +3,8 @@ import threading
 import time
 import logging
 from pygame import mixer
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Optional
+from cardinal_state import CardinalState
 
 if TYPE_CHECKING:
     from cardinal_system import Cardinal
@@ -19,14 +20,18 @@ class AudioController:
         self.is_playing = False
         self.is_paused = False
 
+        self.current_on_complete_method = None
         self._lock = threading.RLock()
         self._token = 0
-        self._source = None  # keep a reference so the BytesIO isn't dumped to garbage
+        
+        # Store raw data and type instead of a volatile stream object
+        self._raw_data = None 
+        self._is_menu = False
 
         if not mixer.get_init():
             mixer.init()
 
-    def play(self, data, menu: bool = False, delay: float = 1.0):
+    def play(self, data, menu: bool = False, delay: float = 1.0, on_complete: Optional[Callable[[], None]] = None):
         # claim a new token immediately: this cancels any older pending play()
         with self._lock:
             self._token += 1
@@ -41,20 +46,24 @@ class AudioController:
             if token != self._token:
                 return  # superseded by a newer play()/stop() during the delay
 
+            # Save reference parameters for clean replaying
+            self._raw_data = data
+            self._is_menu = menu
+            self.current_on_complete_method = on_complete
+
             source = io.BytesIO(data) if not menu else data
             try:
                 mixer.music.load(source)
                 mixer.music.play()
             except Exception as e:
                 log.error(f"Failed to play audio: {e}")
-                self._source = None
+                self._raw_data = None
                 self.is_playing = self.is_paused = False
                 return
 
-            self._source = source
             self.is_playing = True
             self.is_paused = False
-            self._start_watcher(token)
+            self._start_watcher(token, on_complete)
         log.debug(f"Playing audio track.")
 
     def pause(self):
@@ -86,45 +95,46 @@ class AudioController:
 
     def replay(self):
         with self._lock:
-            if self._source is None:
+            if self._raw_data is None:
+                log.warning("Replay requested, but no audio source is loaded.")
                 return
+            
             self._token += 1
             token = self._token
+            
             try:
-                if isinstance(self._source, io.BytesIO):
-                    self._source.seek(0)
+                # always generate a fresh BytesIO stream from the stored raw bytes so we don't get ValueError: I/O operation on closed file.
+                source = io.BytesIO(self._raw_data) if not self._is_menu else self._raw_data
                 mixer.music.stop()
-                mixer.music.load(self._source)
+                mixer.music.load(source)
                 mixer.music.play()
             except Exception as e:
                 log.error(f"Failed to replay audio: {e}")
                 return
+
             self.is_playing = True
             self.is_paused = False
-            self._start_watcher(token)
+            self._start_watcher(token, on_complete=self.current_on_complete_method)
             log.debug("Restarted playback.")
 
     def get_position(self) -> float:
-        # seconds played since the last start (pause-aware). -1 if idle
         with self._lock:
             return mixer.music.get_pos() / 1000 if self.is_playing else -1.0
 
     def on_end(self):
         self.cardinal.next_audio()
 
-    # internal bs
     def _halt(self):
-        # stop output and reset flags, caller must hold the lock
         mixer.music.stop()
         self.is_playing = False
         self.is_paused = False
 
-    def _start_watcher(self, token: int):
+    def _start_watcher(self, token: int, on_complete: Optional[Callable[[], None]]):
         threading.Thread(
-            target=self._watch, args=(token,), daemon=True
+            target=self._watch, args=(token, on_complete), daemon=True
         ).start()
 
-    def _watch(self, token: int):
+    def _watch(self, token: int, on_complete: Optional[Callable[[], None]]):
         started = time.monotonic()
         while True:
             time.sleep(self.POLL_INTERVAL)
@@ -144,5 +154,10 @@ class AudioController:
                 self._token += 1  # make sure nothing else fires for this track
 
             log.debug("End of audio reached.")
-            self.on_end()  # outside the lock: next_audio() will call play()
+            
+            # Execute the specific completion callback if provided, otherwise check state
+            if on_complete:
+                on_complete()
+            elif self.cardinal.state == CardinalState.READING:
+                self.on_end()
             return

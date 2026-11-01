@@ -3,27 +3,33 @@ import os
 import logging
 import threading
 import time
-from Player.speech_manager import listen_for_commands
+from word2number import w2n
+from cardinal_state import CardinalState
+from Player.speech_manager import listen_for_commands, clear_audio_queue
 from Player.audio_manager import AudioController
 from Player.audib_manager import *
 from Player.audib_manifest_model import PageData, TextID
-from Player.voice_manager import generate_voice
+from Player.voice_manager import generate_voice, generate_cardinal_audio
 
 logging.basicConfig(
     level=logging.DEBUG,  # Capture DEBUG level and above (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
-
 log = logging.getLogger(__name__)
 
 class Cardinal:
     def __init__(self):
+        self.state: CardinalState = CardinalState.MENU
         self.speech_listener_off_event = threading.Event()
         self.audio_controller = AudioController(self)
         self.manifest: PageData
         self.audib: Path
         self.position: TextID
+
+        if not Path("Data", "Cardinal_Audio", "system_prompts-app_greet.wav").is_file():
+            log.debug("No Cardinal audio detected. Generating audio.")
+            generate_cardinal_audio()
 
     def initialize_speech_receiver(self):
         receiver = threading.Thread(daemon=False, target=listen_for_commands, args=(self, self.speech_listener_off_event))
@@ -31,44 +37,60 @@ class Cardinal:
         log.info("Speech receiver initialized.")
 
     def receive_command(self, text: str ):
-        # map command keywords to their respective player actions
-        commands = [
-            ("command repeat", lambda: self.audio_controller.replay()),
-            ("command stop", lambda: self.audio_controller.stop()),
-            ("command pause", lambda: self.audio_controller.pause()),
+        if self.state == CardinalState.WAITING_FOR_NUMBER and text != "command repeat":
+            log.debug(f"Received raw text for number conversion: '{text}'")
+                
+            try:
+                page_num = w2n.word_to_num(text) # convert to int
+                log.info(f"Successfully converted voice to page number: {page_num}")
 
-            ("command play", lambda: self.audio_controller.resume()),
-            ("command continue", lambda: self.audio_controller.resume()),
+                audio_path = Path("Data", "Cardinal_Audio", "book_session-page_moved.wav")
+                self.audio_controller.play(data=audio_path, menu=True, delay=0.0)
+                # TODO:
+                # self.load_page(page_num)
+                
+                self.state = CardinalState.READING
+                
+            except ValueError:
+                log.warning(f"Could not parse a valid number from: '{text}'")
+        else:
+            # map command keywords to their respective player actions
+            commands = [
+                ("command repeat", lambda: self.audio_controller.replay()),
+                ("command stop", lambda: self.audio_controller.pause()),
+                ("command pause", lambda: self.audio_controller.pause()),
 
-            ("command exit", lambda: self.shutdown()),
+                ("command play", lambda: self.audio_controller.resume()),
+                ("command continue", lambda: self.audio_controller.resume()),
 
-            ("command jump forward", lambda: self.next_audio()),
-            ("command go forward", lambda: self.next_audio()),
+                ("command exit", lambda: self.shutdown()),
 
-            ("command jump backward", lambda: self.previous_audio()),
-            ("command go backward", lambda: self.previous_audio()),
-            
-            #TODO:
-            #("command explain more", lambda: placeholder),
-            #("command move to page", lambda: placeholder)
-        ]
+                ("command jump forward", lambda: self.next_audio()),
+                ("command go forward", lambda: self.next_audio()),
 
-        earliest_keyword = None
-        earliest_action = None
-        min_index = float('inf')
+                ("command jump backward", lambda: self.previous_audio()),
+                ("command go backward", lambda: self.previous_audio()),
+                
+                ("command explain more", lambda: self.start_audio_hyperlink()),
+                ("command move page", lambda: self.receive_number())
+            ]
 
-        # find which command appears first in the text
-        for keyword, action in commands:
-            idx = text.find(keyword)
-            if idx != -1 and idx < min_index:
-                min_index = idx
-                earliest_keyword = keyword
-                earliest_action = action
+            earliest_keyword = None
+            earliest_action = None
+            min_index = float('inf')
 
-        log.debug(f"Detected command: \"{earliest_keyword.split(maxsplit=1)[1]}\"")
-        # Execute only the single earliest command found
-        if earliest_action:
-            earliest_action()
+            # find which command appears first in the text
+            for keyword, action in commands:
+                idx = text.find(keyword)
+                if idx != -1 and idx < min_index:
+                    min_index = idx
+                    earliest_keyword = keyword
+                    earliest_action = action
+
+            # Execute only the single earliest command found
+            if earliest_action:
+                log.debug(f"Detected command: \"{earliest_keyword.split(maxsplit=1)[1]}\"")
+                earliest_action()
 
     def create_audib(self, json_path: Path):
         log.info("Synthesizing audio...")
@@ -91,6 +113,7 @@ class Cardinal:
         #self.audio_controller.play(Path("Menu"))
     
     def initialize_audio(self):
+        self.state = CardinalState.READING
         self.position = TextID(
             page_number = self.manifest.page_number,
             block_id = "block_1",
@@ -100,7 +123,26 @@ class Cardinal:
         audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
         self.audio_controller.play(audio_bytes)
 
+    def start_audio_hyperlink(self):
+        if not self.state == CardinalState.READING: # this command is only allowed on reading mode
+            return
+
+        def play_audio_hyperlink():
+            audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position)) # position have been updated to link_1
+            self.audio_controller.play(audio_bytes)
+        
+        if self.manifest.reading_flow[self._get_id(self.position.block_id)-1].audio_hyperlinks and not self.position.link_id:
+            self.position.link_id = "link_1"
+            audio_path = Path("Data", "Cardinal_Audio", "book_session-audio_hyperlink_started.wav")
+            self.audio_controller.play(data=audio_path, menu=True, delay=1.0, on_complete=play_audio_hyperlink) # the controller auto calls play_audio_hyperlink to start
+        else:
+            audio_path = Path("Data", "Cardinal_Audio", "book_session-no_audio_hyperlink.wav")
+            self.audio_controller.play(data=audio_path, menu=True, delay=1.0, on_complete=self.replay_audio) # the controller auto calls self.next_audio()
+    
     def previous_audio(self):
+        if not self.state == CardinalState.READING: # this command is only allowed on reading mode
+            return
+        
         if self.position.link_id:
             current_link = self._get_id(self.position.link_id)
 
@@ -108,8 +150,8 @@ class Cardinal:
             if (current_link - 1) != 0:
                 self.position.link_id = f"link_{current_link - 1}"
             else:
-                self.position.link_id = None
-                self.previous_audio() # call again to go back to previous block
+                self.position.link_id = None # go back to the block
+                self.replay_audio()
                 return
         else:
             current_block = self._get_id(self.position.block_id)
@@ -125,24 +167,27 @@ class Cardinal:
         self.audio_controller.play(audio_bytes)        
 
     def next_audio(self):
+        if not self.state == CardinalState.READING: # this command is only allowed on reading mode
+            return
+        
         current_block = self._get_id(self.position.block_id)
 
         if self.position.link_id:
             current_link = self._get_id(self.position.link_id)
             links_length = len(self.manifest.reading_flow[current_block - 1].audio_hyperlinks)
 
-            # checks if the current audio hyperlink has more links and if it is not the last link
-            if links_length > 1 and (links_length - 1) != (current_link - 1):
+            # checks if the current audio hyperlink is not the last link
+            if (links_length - 1) != (current_link - 1):
                 self.position.link_id = f"link_{current_link + 1}"
             else:
-                self.position.link_id = None
-                self.next_audio() # call again to move to next block
+                self.position.link_id = None # move back the block to replay the block
+                self.replay_audio()
                 return
         else:
             blocks_length = len(self.manifest.reading_flow)
 
-            # checks if the current audio block has more blocks and if it is not the last block
-            if blocks_length > 1 and (blocks_length - 1) != (current_block - 1):
+            # checks if the current audio block is not the last block
+            if (blocks_length - 1) != (current_block - 1):
                 self.position.block_id = f"block_{current_block + 1}"
             else:
                 log.debug("Audib finished")
@@ -151,10 +196,30 @@ class Cardinal:
         audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
         self.audio_controller.play(audio_bytes)
 
-    def shutdown(self):
-        self.speech_listener_off_event.set()
-        self.audio_controller.stop()
+    def replay_audio(self):
+            def _replay():
+                audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
+                self.audio_controller.play(audio_bytes, delay=1.0)
 
+            audio_path = Path("Data", "Cardinal_Audio", "system_prompts-replaying.wav")
+            self.audio_controller.play(data=audio_path, menu=True, delay=1.0, on_complete=_replay)
+
+    def receive_number(self):
+        def on_prompt_finished():
+            clear_audio_queue()
+            self.state = CardinalState.WAITING_FOR_NUMBER
+            log.debug("System prompt finished. Switched to WAITING_FOR_NUMBER state.")
+
+        audio_path = Path("Data", "Cardinal_Audio", "system_prompts-number.wav")
+        self.audio_controller.play(data=audio_path, menu=True, delay=1.0, on_complete=on_prompt_finished)
+
+    def shutdown(self):
+        def close_listener_loop():
+            self.speech_listener_off_event.set()
+
+        audio_path = Path("Data", "Cardinal_Audio", "system_prompts-exit_app.wav")
+        self.audio_controller.play(data=audio_path, menu=True, delay=1.0, on_complete=close_listener_loop)
+   
     def _generate_audio_path(self, textID: TextID) -> str:
         if textID.link_id:
             return f"page{textID.page_number}_{textID.block_id}_{textID.link_id}.wav"
@@ -164,3 +229,4 @@ class Cardinal:
     def _get_id(self, data: str) -> int:
         name, id = data.split("_")
         return int(id)
+    
