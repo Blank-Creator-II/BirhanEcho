@@ -26,12 +26,12 @@ class AudioController:
         
         # Store raw data and type instead of a volatile stream object
         self._raw_data = None 
-        self._is_menu = False
+        self._is_wav = False
 
         if not mixer.get_init():
             mixer.init()
 
-    def play(self, data, menu: bool = False, delay: float = 1.0, on_complete: Optional[Callable[[], None]] = None):
+    def play(self, data, is_wav: bool = False, delay: float = 1.0, on_complete: Optional[Callable[[], None]] = None):
         # claim a new token immediately: this cancels any older pending play()
         with self._lock:
             self._token += 1
@@ -48,10 +48,10 @@ class AudioController:
 
             # Save reference parameters for clean replaying
             self._raw_data = data
-            self._is_menu = menu
+            self._is_wav = is_wav
             self.current_on_complete_method = on_complete
 
-            source = io.BytesIO(data) if not menu else data
+            source = io.BytesIO(data) if not is_wav else data
             try:
                 mixer.music.load(source)
                 mixer.music.play()
@@ -104,7 +104,7 @@ class AudioController:
             
             try:
                 # always generate a fresh BytesIO stream from the stored raw bytes so we don't get ValueError: I/O operation on closed file.
-                source = io.BytesIO(self._raw_data) if not self._is_menu else self._raw_data
+                source = io.BytesIO(self._raw_data) if not self._is_wav else self._raw_data
                 mixer.music.stop()
                 mixer.music.load(source)
                 mixer.music.play()

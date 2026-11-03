@@ -24,6 +24,7 @@ allowed_commands = [
     "command help",
     "command repeat",
     "command go back",
+    "command main menu",
 
     # menu & configuration choices
     "command list books",

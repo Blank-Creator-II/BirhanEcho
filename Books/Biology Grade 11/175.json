@@ -1,0 +1,70 @@
+{
+"page_number": 165,
+"reading_flow": [
+{
+"id": "block_1",
+"type": "paragraph",
+"text": "People in the community have their own accumulated knowledge about natural phenomena or events, challenges such as diseases and their effects on agriculture practices and living systems in their environment. They have their own indigenous knowledge and practices on how to combat environmental changes, diseases and plant and animal reproduction. They have indigenous knowledge on the selection of desired characteristics, breeding and management practices on their agricultural activities. For example, indigenous knowledge in selecting the desired quality based on growth rate, body size, resistance to disease and other environmental conditions.",
+"audio_file": "page165_block_1.wav",
+"audio_hyperlinks": [
+{
+"id": "link_1",
+"term": "indigenous knowledge",
+"explanation": "Understandings, skills, and philosophies developed by societies with long histories of interaction with their natural surroundings.",
+"audio_file": "page165_block_1_link_1.wav"
+}
+]
+},
+{
+"id": "block_2",
+"type": "activity",
+"text": "Inquiry activity 4.33: Investigating practice of breeding. Visit farmers or agricultural institutions/centers and investigate how they practice the breeding of animals and plants? What is indigenous knowledge? What types of indigenous knowledge are there in your area used in the breeding of animals and plants from different varieties? How much is the indigenous knowledge useful when compared with the modern scientific knowledge. Which one is the most practiced breeding methods (inbreeding, crossbreeding)? Report your investigation for your teacher.",
+"audio_file": "page165_block_2.wav",
+"audio_hyperlinks": []
+},
+{
+"id": "block_3",
+"type": "subheading",
+"text": "4.13 Bioinformatics introduction",
+"audio_file": "page165_block_3.wav",
+"audio_hyperlinks": []
+},
+{
+"id": "block_4",
+"type": "paragraph",
+"text": "After the successful completion of this section, the student will be able to: Define bioinformatics, and describe the role of bioinformatics in biology.",
+"audio_file": "page165_block_4.wav",
+"audio_hyperlinks": []
+},
+{
+"id": "block_5",
+"type": "sidebar",
+"context_title": "Self-questioning",
+"text": "Before starting this section, ask yourself this question: 'What do I know about bioinformatics and what do I want to learn from this section?'",
+"audio_file": "page165_block_5.wav",
+"audio_hyperlinks": []
+},
+{
+"id": "block_6",
+"type": "sidebar",
+"context_title": "Think about study",
+"text": "Think about studying biology in the 21st century. What is the contribution of bioinformatics to biological studies? In the era of information technology or the digital world, there is a need to find new ways of studying biology. Bioinformatics that considers the digital world into account is one of the modern ways of studying biology.",
+"audio_file": "page165_block_6.wav",
+"audio_hyperlinks": []
+},
+{
+"id": "block_7",
+"type": "paragraph",
+"text": "Bioinformatics is a modern, growing hybrid field that links biology, computer science, and information technology to support the storage, organization, and retrieval of biological data. It is the design, constructions and use of software tools to generate, store, and analyze biological data.",
+"audio_file": "page165_block_7.wav",
+"audio_hyperlinks": [
+{
+"id": "link_1",
+"term": "Bioinformatics",
+"explanation": "An interdisciplinary field that develops methods and software tools for understanding biological data.",
+"audio_file": "page165_block_7_link_1.wav"
+}
+]
+}
+]
+}
