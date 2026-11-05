@@ -1,68 +1,68 @@
 {
-"page_number": 324,
-"reading_flow": [
-{
-"id": "block_1",
-"type": "paragraph",
-"text": "The melting points of the unsaturated fatty acids decrease as the number of double bonds increases. For example, an 18-carbon fatty acid melts at 69 degrees Celsius if it is saturated, at 13 degrees Celsius if it has one double bond, at negative 5 degrees Celsius if it has two double bonds, and at negative 11 degrees Celsius if it has three double bonds, as seen in Table 6.6.",
-"audio_file": "page324_block_1.wav",
-"audio_hyperlinks": []
-},
-{
-"id": "block_2",
-"type": "subheading",
-"text": "6.4.6 Uses of Carboxylic Acids",
-"audio_file": "page324_block_2.wav",
-"audio_hyperlinks": []
-},
-{
-"id": "block_3",
-"type": "paragraph",
-"text": "Acetic acid is used as a solvent and as a starting material in the preparation of acetates, acetic anhydride, and other compounds. It is also used to prepare the vinyl acetate polymer which is used in paints and adhesives. Vinegar contains about 8 to 10 percent acetic acid which is used in many food items. Perhaps one of the most important industrial applications of long chain carboxylic acid is for making soaps, detergents, and shampoos.",
-"audio_file": "page324_block_3.wav",
-"audio_hyperlinks": [
-{
-"id": "link_1",
-"term": "Acetic acid",
-"explanation": "A clear liquid organic acid, also known as ethanoic acid, which is the main component of vinegar apart from water.",
-"audio_file": "page324_block_3_link_1.wav"
-},
-{
-"id": "link_2",
-"term": "vinyl acetate polymer",
-"explanation": "A polymer derived from vinyl acetate, commonly used in adhesives, paints, and other coatings.",
-"audio_file": "page324_block_3_link_2.wav"
-}
-]
-},
-{
-"id": "block_4",
-"type": "sidebar",
-"context_title": "Critical Thinking Question",
-"text": "Can you suggest some more examples of the use of carboxylic acids in daily life?",
-"audio_file": "page324_block_4.wav",
-"audio_hyperlinks": []
-},
-{
-"id": "block_5",
-"type": "activity",
-"text": "Exercise 6.12: 1. Explain the difference in the melting points of the following fatty acids: a. palmitic acid and stearic acid; b. palmitic acid and palmitoleic acid; c. oleic acid and linoleic acid. 2. What are omega fatty acids? Give some examples of omega fatty acids. 3. What is the difference between omega-3-fatty acids and omega-6-fatty acids? 4. List some essential fatty acids. Why are they called 'essential'?",
-"audio_file": "page324_block_5.wav",
-"audio_hyperlinks": []
-},
-{
-"id": "block_6",
-"type": "activity",
-"text": "Project 6.3: Form a group of five and share information on some carboxylic derivatives, including anhydrides, amides, and acid chloride, then submit a written word and PDF documents to your teacher. In your write-up, put the following key points into consideration: structures and naming, covering both IUPAC and common systems, of anhydrides, amides, and acid chloride; physical properties of anhydrides, amides, and acid chloride; and common reactions and methods of preparations.",
-"audio_file": "page324_block_6.wav",
-"audio_hyperlinks": [
-{
-"id": "link_1",
-"term": "carboxylic derivatives",
-"explanation": "Compounds derived from carboxylic acids where the hydroxyl group is replaced by another group.",
-"audio_file": "page324_block_6_link_1.wav"
-}
-]
-}
-]
+    "page_number": 324,
+    "reading_flow": [
+        {
+            "id": "block_1",
+            "type": "paragraph",
+            "text": "The melting points of the unsaturated fatty acids decrease as the number of double bonds increases. For example, an 18-carbon fatty acid melts at 69 degrees Celsius if it is saturated, at 13 degrees Celsius if it has one double bond, at negative 5 degrees Celsius if it has two double bonds, and at negative 11 degrees Celsius if it has three double bonds, as seen in Table 6.6.",
+            "audio_file": "page324_block_1.wav",
+            "audio_hyperlinks": []
+        },
+        {
+            "id": "block_2",
+            "type": "subheading",
+            "text": "6.4.6 Uses of Carboxylic Acids",
+            "audio_file": "page324_block_2.wav",
+            "audio_hyperlinks": []
+        },
+        {
+            "id": "block_3",
+            "type": "paragraph",
+            "text": "Acetic acid is used as a solvent and as a starting material in the preparation of acetates, acetic anhydride, and other compounds. It is also used to prepare the vinyl acetate polymer which is used in paints and adhesives. Vinegar contains about 8 to 10 percent acetic acid which is used in many food items. Perhaps one of the most important industrial applications of long chain carboxylic acid is for making soaps, detergents, and shampoos.",
+            "audio_file": "page324_block_3.wav",
+            "audio_hyperlinks": [
+                {
+                    "id": "link_1",
+                    "term": "Acetic acid",
+                    "explanation": "A clear liquid organic acid, also known as ethanoic acid, which is the main component of vinegar apart from water.",
+                    "audio_file": "page324_block_3_link_1.wav"
+                },
+                {
+                    "id": "link_2",
+                    "term": "vinyl acetate polymer",
+                    "explanation": "A polymer derived from vinyl acetate, commonly used in adhesives, paints, and other coatings.",
+                    "audio_file": "page324_block_3_link_2.wav"
+                }
+            ]
+        },
+        {
+            "id": "block_4",
+            "type": "sidebar",
+            "context_title": "Critical Thinking Question",
+            "text": "Can you suggest some more examples of the use of carboxylic acids in daily life?",
+            "audio_file": "page324_block_4.wav",
+            "audio_hyperlinks": []
+        },
+        {
+            "id": "block_5",
+            "type": "activity",
+            "text": "Exercise 6.12: 1. Explain the difference in the melting points of the following fatty acids: a. palmitic acid and stearic acid; b. palmitic acid and palmitoleic acid; c. oleic acid and linoleic acid. 2. What are omega fatty acids? Give some examples of omega fatty acids. 3. What is the difference between omega-3-fatty acids and omega-6-fatty acids? 4. List some essential fatty acids. Why are they called 'essential'?",
+            "audio_file": "page324_block_5.wav",
+            "audio_hyperlinks": []
+        },
+        {
+            "id": "block_6",
+            "type": "activity",
+            "text": "Project 6.3: Form a group of five and share information on some carboxylic derivatives, including anhydrides, amides, and acid chloride, then submit a written word and PDF documents to your teacher. In your write-up, put the following key points into consideration: structures and naming, covering both IUPAC and common systems, of anhydrides, amides, and acid chloride; physical properties of anhydrides, amides, and acid chloride; and common reactions and methods of preparations.",
+            "audio_file": "page324_block_6.wav",
+            "audio_hyperlinks": [
+                {
+                    "id": "link_1",
+                    "term": "carboxylic derivatives",
+                    "explanation": "Compounds derived from carboxylic acids where the hydroxyl group is replaced by another group.",
+                    "audio_file": "page324_block_6_link_1.wav"
+                }
+            ]
+        }
+    ]
 }

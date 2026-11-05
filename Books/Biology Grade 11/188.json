@@ -1,49 +1,49 @@
 {
-"page_number": 178,
-"reading_flow": [
-{
-"id": "block_1",
-"type": "diagram",
-"context_title": "Figure 5.3",
-"text": "An anatomical diagram of skeletal muscles showing its hierarchical structure: a tendon attached to deep fascia, leading to a muscle covered by epimysium, containing bundles called fascicles wrapped in perimysium, which are made up of individual muscle fibers (cells) surrounded by endomysium and sarcolemma, supplied by blood vessels and capillaries, stimulated by a motor neuron, and containing finer strands called myofibrils.",
-"audio_file": "page178_block_1.wav",
-"audio_hyperlinks": []
-},
-{
-"id": "block_2",
-"type": "subheading",
-"text": "3. The Smooth Muscles",
-"audio_file": "page178_block_2.wav",
-"audio_hyperlinks": []
-},
-{
-"id": "block_3",
-"type": "paragraph",
-"text": "The smooth muscles are involuntary, non-striated and unconsciously controlled muscles that control the flow of substances within the lumens.",
-"audio_file": "page178_block_3.wav",
-"audio_hyperlinks": [
-{
-"id": "link_1",
-"term": "smooth muscles",
-"explanation": "Involuntary, non-striated muscles found within the walls of hollow organs and structures.",
-"audio_file": "page178_block_3_link_1.wav"
-}
-]
-},
-{
-"id": "block_4",
-"type": "paragraph",
-"text": "The Smooth muscles are muscles found in the walls of hollow organs: the stomach, intestine, bladder, uterus and walls of passageways of the blood and lymph vessels, respiratory tracts, urinary and reproductive systems, in the eyes and the ciliary muscles (Figure 5.4). The smooth muscle cells of the skins are the erector of pili causing hair to stand erect in response to cold, heat or fear.",
-"audio_file": "page178_block_4.wav",
-"audio_hyperlinks": []
-},
-{
-"id": "block_5",
-"type": "diagram",
-"context_title": "Figure 5.4",
-"text": "An illustration showing the stomach with a highlighted section zoomed in to reveal spindle-shaped smooth muscle cells.",
-"audio_file": "page178_block_5.wav",
-"audio_hyperlinks": []
-}
-]
+    "page_number": 178,
+    "reading_flow": [
+        {
+            "id": "block_1",
+            "type": "diagram",
+            "context_title": "Figure 5.3",
+            "text": "An anatomical diagram of skeletal muscles showing its hierarchical structure: a tendon attached to deep fascia, leading to a muscle covered by epimysium, containing bundles called fascicles wrapped in perimysium, which are made up of individual muscle fibers (cells) surrounded by endomysium and sarcolemma, supplied by blood vessels and capillaries, stimulated by a motor neuron, and containing finer strands called myofibrils.",
+            "audio_file": "page178_block_1.wav",
+            "audio_hyperlinks": []
+        },
+        {
+            "id": "block_2",
+            "type": "subheading",
+            "text": "3. The Smooth Muscles",
+            "audio_file": "page178_block_2.wav",
+            "audio_hyperlinks": []
+        },
+        {
+            "id": "block_3",
+            "type": "paragraph",
+            "text": "The smooth muscles are involuntary, non-striated and unconsciously controlled muscles that control the flow of substances within the lumens.",
+            "audio_file": "page178_block_3.wav",
+            "audio_hyperlinks": [
+                {
+                    "id": "link_1",
+                    "term": "smooth muscles",
+                    "explanation": "Involuntary, non-striated muscles found within the walls of hollow organs and structures.",
+                    "audio_file": "page178_block_3_link_1.wav"
+                }
+            ]
+        },
+        {
+            "id": "block_4",
+            "type": "paragraph",
+            "text": "The Smooth muscles are muscles found in the walls of hollow organs: the stomach, intestine, bladder, uterus and walls of passageways of the blood and lymph vessels, respiratory tracts, urinary and reproductive systems, in the eyes and the ciliary muscles (Figure 5.4). The smooth muscle cells of the skins are the erector of pili causing hair to stand erect in response to cold, heat or fear.",
+            "audio_file": "page178_block_4.wav",
+            "audio_hyperlinks": []
+        },
+        {
+            "id": "block_5",
+            "type": "diagram",
+            "context_title": "Figure 5.4",
+            "text": "An illustration showing the stomach with a highlighted section zoomed in to reveal spindle-shaped smooth muscle cells.",
+            "audio_file": "page178_block_5.wav",
+            "audio_hyperlinks": []
+        }
+    ]
 }

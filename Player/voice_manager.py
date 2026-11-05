@@ -16,37 +16,68 @@ MODEL_PATH = Path("Voices", VOICE_CHARACTER, f"{VOICE_CHARACTER}.onnx")
 voice = PiperVoice.load(MODEL_PATH)
 syn_config = SynthesisConfig(length_scale=SETTINGS.voice_speed) # > 1.0 slows down speech (1.2 is 20% slower)
 
-def generate_voice(json_path: Path):
-    manifest = read_json(json_path)
+def generate_voice(json_root_path: Path):
+    # loop inside the root path to fetch all json paths
+    json_paths = sorted(item for item in json_root_path.iterdir() if item.is_file() and str(item).endswith(".json") and item.name != "manifest.json")
+
+    create_manifest(json_paths, json_root_path)
+
+    manifest = read_manifest(Path(json_root_path, "manifest.json"))
+
     process_manifest(manifest)
 
-def read_json(json_path: Path) -> PageData:
-    with open(json_path, 'r') as file:
+def create_manifest(json_paths: list[Path], output_path: Path):
+    # this will hold all files nested by their number
+    manifest = {}
+
+    for file_name in json_paths:
+        file_key = int(os.path.splitext(os.path.basename(file_name))[0])
+
+        # open and load the original JSON structure
+        with open(file_name, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            
+            # assign the entire original JSON structure to its respective key
+            manifest[file_key] = data
+
+    with open(Path(output_path, "manifest.json"), "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=4, ensure_ascii=False)
+
+def read_manifest(manifest_path: Path) -> list[PageData]:
+    with open(manifest_path, "r", encoding="utf-8") as file:
         data = json.load(file)
-    return PageData(**data)
 
-def process_manifest(manifest: PageData):
-    page_number = manifest.page_number
+        page_data_holder: list[PageData] = []
+        for page_data in data.values():
+            page_data = PageData(**page_data)
+            page_data_holder.append(page_data)
 
-    for block in manifest.reading_flow:
-        block_text_id = TextID(
-            page_number=page_number,
-            block_id=block.id,
-            link_id=None
-        )
-        
-        block_text = f"{block.context_title}... {block.text}" if block.context_title else block.text
-        generate_audio(block_text, block_text_id)
+        return page_data_holder
 
-        for link in block.audio_hyperlinks:
-            link_text_id = TextID(
+
+def process_manifest(manifest: list[PageData]):
+    for page_data in manifest:
+        page_number = page_data.page_number
+
+        for block in page_data.reading_flow:
+            block_text_id = TextID(
                 page_number=page_number,
                 block_id=block.id,
-                link_id=link.id
+                link_id=None
             )
             
-            link_text = f"{link.term}... {link.explanation}"
-            generate_audio(link_text, link_text_id)
+            block_text = f"{block.context_title}. {block.text}" if block.context_title else block.text
+            generate_audio(block_text, block_text_id)
+
+            for link in block.audio_hyperlinks:
+                link_text_id = TextID(
+                    page_number=page_number,
+                    block_id=block.id,
+                    link_id=link.id
+                )
+                
+                link_text = f"{link.term}: {link.explanation}"
+                generate_audio(link_text, link_text_id)
 
 def generate_audio(text_to_read: str, textID: TextID):
     if textID.link_id:
@@ -80,6 +111,8 @@ def generate_cardinal_audio():
         Path(root_output_dir, "menus", "options_menu"),
         Path(root_output_dir, "menus", "options_menu", "options"),
         Path(root_output_dir, "book_titles"),
+        Path(root_output_dir, "book_titles", "titles"),
+        Path(root_output_dir, "voice_test"),
     ]
     for dir in directory_holder:
         dir.mkdir(parents=True, exist_ok=True)
@@ -122,12 +155,20 @@ def generate_cardinal_audio():
                     with wave.open(str(out_path), "wb") as wav_file:
                         voice.synthesize_wav(spoken_text, wav_file, syn_config=syn_config)
 
-    book_titles = sorted(item.name for item in Path("Books").iterdir() if item.is_dir())
+    # synthesize book titles intro
+    if "book_titles" in cardinal_audio_manifest:
+        for key, text in cardinal_audio_manifest["book_titles"].items():
+            out_path = Path(directory_holder[6], f"{key}.wav")
+            with wave.open(str(out_path), "wb") as wav_file:
+                voice.synthesize_wav(text, wav_file, syn_config=syn_config)
+
+    # synthesize actual book titles
+    book_titles = sorted(item.name for item in Path("Data", "Books").iterdir() if item.is_file() and str(item).endswith(".audib"))
     if book_titles:
         for idx, title in enumerate(book_titles, start=1):
-            out_path = Path(directory_holder[6], f"{idx}.wav")
+            out_path = Path(directory_holder[7], f"{idx}.wav")
             with wave.open(str(out_path), "wb") as wav_file:
-                voice.synthesize_wav(title, wav_file, syn_config=syn_config)
+                voice.synthesize_wav(title.removesuffix(".audib"), wav_file, syn_config=syn_config)
 
     # save cardinal voice and speed data
     SETTINGS.cardinal_voice_character = VOICE_CHARACTER

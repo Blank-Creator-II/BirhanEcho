@@ -1,0 +1,75 @@
+{
+    "page_number": 313,
+    "reading_flow": [
+        {
+            "id": "block_1",
+            "type": "heading",
+            "text": "Carboxylic Acids",
+            "audio_file": "page313_block_1.wav",
+            "audio_hyperlinks": []
+        },
+        {
+            "id": "block_2",
+            "type": "paragraph",
+            "text": "Double bonds in naturally occurring unsaturated fatty acids are never conjugated. How many methylene groups usually separate the double bonds in unsaturated fatty acids? See Table 6.6.",
+            "audio_file": "page313_block_2.wav",
+            "audio_hyperlinks": [
+                {
+                    "id": "link_1",
+                    "term": "conjugated",
+                    "explanation": "Systems of connected p-orbitals with delocalized electrons in molecules with alternating single and multiple bonds.",
+                    "audio_file": "page313_block_2_link_1.wav"
+                },
+                {
+                    "id": "link_2",
+                    "term": "methylene",
+                    "explanation": "A functional group consisting of one carbon atom bonded to two hydrogen atoms, represented as minus CH2 minus.",
+                    "audio_file": "page313_block_2_link_2.wav"
+                }
+            ]
+        },
+        {
+            "id": "block_3",
+            "type": "table",
+            "context_title": "Table 6.6: Some common naturally occurring fatty acids",
+            "text": "Table 6.6 lists common naturally occurring fatty acids categorized into saturated and unsaturated types, detailing their number of carbons, common name, chemical structure or formula, and melting point in degrees Celsius. Saturated fatty acids include: Lauric acid with 12 carbons, formula CH3(CH2)10COOH, melting point 44 degrees Celsius; Myristic acid with 14 carbons, formula CH3(CH2)12COOH, melting point 58 degrees Celsius; Palmitic acid with 16 carbons, formula CH3(CH2)14COOH, melting point 63 degrees Celsius; Stearic acid with 18 carbons, formula CH3(CH2)16COOH, melting point 69 degrees Celsius; and Arachidic acid with 20 carbons, formula CH3(CH2)18COOH, melting point 77 degrees Celsius. Unsaturated fatty acids include: Palmitoleic acid with 16 carbons, formula CH3(CH2)5 CH equals CH(CH2)7COOH, melting point 0 degrees Celsius; Oleic acid with 18 carbons, formula CH3(CH2)7 CH equals CH(CH2)7COOH, melting point 13 degrees Celsius; Linoleic acid with 18 carbons, formula CH3(CH2)4 CH equals CH CH2 CH equals CH(CH2)7COOH, melting point negative 5 degrees Celsius; and Linolenic acid with 18 carbons, formula CH3 CH2 CH equals CH CH2 CH equals CH CH2 CH equals CH(CH2)7COOH, melting point negative 11 degrees Celsius.",
+            "audio_file": "page313_block_3.wav",
+            "audio_hyperlinks": [
+                {
+                    "id": "link_1",
+                    "term": "saturated fatty acids",
+                    "explanation": "Fatty acids containing only single bonds between carbon atoms in their hydrocarbon chains.",
+                    "audio_file": "page313_block_3_link_1.wav"
+                },
+                {
+                    "id": "link_2",
+                    "term": "unsaturated fatty acids",
+                    "explanation": "Fatty acids containing one or more double bonds between carbon atoms in their hydrocarbon chains.",
+                    "audio_file": "page313_block_3_link_2.wav"
+                }
+            ]
+        },
+        {
+            "id": "block_4",
+            "type": "paragraph",
+            "text": "The physical properties of a fatty acid depend on the length of the hydrocarbon chain and the degree of unsaturation. The melting points of saturated fatty acids increase with increasing molecular weight because of increased van der Waals interactions between the molecules.",
+            "audio_file": "page313_block_4.wav",
+            "audio_hyperlinks": [
+                {
+                    "id": "link_1",
+                    "term": "van der Waals interactions",
+                    "explanation": "Weak intermolecular forces attraction between molecules.",
+                    "audio_file": "page313_block_4_link_1.wav"
+                }
+            ]
+        },
+        {
+            "id": "block_5",
+            "type": "sidebar",
+            "context_title": "Critical Thinking Question",
+            "text": "Why do unsaturated fatty acids have lower melting points than saturated fatty acids with comparable molecular weights?",
+            "audio_file": "page313_block_5.wav",
+            "audio_hyperlinks": []
+        }
+    ]
+}

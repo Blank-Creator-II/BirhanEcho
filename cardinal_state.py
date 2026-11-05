@@ -6,5 +6,6 @@ class CardinalState(Enum):
     WAITING_FOR_BOOK = auto()
     OPTIONS_MENU = auto()
     WAITING_FOR_OPTION = auto()
+    VOICE_OPTION = auto()
     READING = auto()
     WAITING_FOR_NUMBER = auto()
