@@ -17,9 +17,10 @@ Classify each content block accurately as one of these types:
 ## Reading Order & Exclusions
 1. **Logical Reading Order**: Detect the logical reading order of the page. If there is a sidebar, breakout box, or activity box, place it where it naturally interrupts or complements the flow, rather than reading it blindly across columns.
 2. **Strict Content Adherence**: ONLY include content that is actually visible on the specific page you are analyzing.
-3. **EXCLUDE repetitive identifiers**: Do NOT include blocks that only repeat the book title without educational value.
-4. **EXCLUDE page headers & footers**: Do NOT include repetitive headers or footers.
-5. **EXCLUDE decorative elements**: Do NOT describe or include purely decorative elements like borders, background patterns, or logos.
+3. **Printed Page Number**: Set `page_number` to the page number printed on the target textbook page, not its position in the PDF. If no printed page number is visible, use the PDF page position.
+4. **EXCLUDE repetitive identifiers**: Do NOT include blocks that only repeat the book title without educational value.
+5. **EXCLUDE page headers & footers**: Do NOT include repetitive headers or footers.
+6. **EXCLUDE decorative elements**: Do NOT describe or include purely decorative elements like borders, background patterns, or logos.
 
 ## Special Content Guidelines
 - **Visual Elements (diagram, graph)**: Provide a rich, descriptive audio-friendly alt-text description in the "text" field so a visually impaired student fully understands the visual layout, labels, and data trends.
@@ -100,4 +101,6 @@ Follow this exact JSON structure:
 ## Final Instructions
 - Return ONLY valid JSON, with no markdown code block formatting wrappers if possible, or clean parseable JSON.
 - Ensure all IDs are unique and sequential (block_1, block_2, etc.).
+- Use the printed textbook page number for `page_number` and all audio filenames.
+- Treat the page number in the JSON example as an example only.
 - Ensure audio file naming patterns match strictly.

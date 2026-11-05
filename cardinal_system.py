@@ -10,7 +10,7 @@ from Player.speech_manager import listen_for_commands
 from Player.audio_manager import AudioController
 from Player.audib_manager import *
 from Player.audib_manifest_model import PageData, TextID
-from Player.voice_manager import generate_voice, generate_cardinal_audio
+from Player.voice_manager import generate_voice, generate_cardinal_audio, generate_book_title_audio
 
 logging.basicConfig(
     level=logging.DEBUG,  # Capture DEBUG level and above (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -211,11 +211,13 @@ class Cardinal:
         log.info("Generating audib file...")
         Path("Data", "Books").mkdir(parents=True, exist_ok=True)
         generate_audib(
-            output_filename=str(Path("Data", f"{json_root_path}.audib")), 
+            output_filename=str(Path("Data", f"{json_root_path.parent}.audib")), 
             manifest_path=Path(json_root_path, "manifest.json"),
             audio_folder=Path("audio")
         )
         log.info("Finished creating audib file.")
+
+        generate_book_title_audio()
 
         if os.path.exists("audio"):
             shutil.rmtree("audio")            
@@ -391,15 +393,15 @@ class Cardinal:
         self._save_book_position()
         self.state = CardinalState.VOICE_OPTION
         def _option_1():
-            audio_path = Path("Data", "Cardinal Audios", "voice_test", "Clara.wav")
+            audio_path = Path("Data", "Cardinal Audios Test", "Clara.wav")
             self.audio_controller.play(data=audio_path, is_wav=True, delay=1.0, on_complete=_option_2)
 
         def _option_2():
-            audio_path = Path("Data", "Cardinal Audios", "voice_test", "Grace.wav")
+            audio_path = Path("Data", "Cardinal Audios Test", "Grace.wav")
             self.audio_controller.play(data=audio_path, is_wav=True, delay=1.0, on_complete=_option_3)
  
         def _option_3():
-            audio_path = Path("Data", "Cardinal Audios", "voice_test", "Raven.wav")
+            audio_path = Path("Data", "Cardinal Audios Test", "Raven.wav")
             self._audio_repeater(
                 repeat_command=self.change_voice,
                 repeat_delay=15.0,
@@ -618,8 +620,7 @@ class Cardinal:
             if self.audib and self.manifest and self.current_page_number and self.position:
                 SETTINGS.saved_book_positions[self.audib] = [self.position, self.current_page_number]
         except Exception as e:
-            return # we don't care just save if stars align or smth
-            
+            return # we don't care just save if stars align or smth        
 
     def _generate_audio_path(self, textID: TextID) -> str:
         if textID.link_id:

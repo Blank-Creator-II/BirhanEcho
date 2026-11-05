@@ -111,8 +111,6 @@ def generate_cardinal_audio():
         Path(root_output_dir, "menus", "options_menu"),
         Path(root_output_dir, "menus", "options_menu", "options"),
         Path(root_output_dir, "book_titles"),
-        Path(root_output_dir, "book_titles", "titles"),
-        Path(root_output_dir, "voice_test"),
     ]
     for dir in directory_holder:
         dir.mkdir(parents=True, exist_ok=True)
@@ -163,12 +161,7 @@ def generate_cardinal_audio():
                 voice.synthesize_wav(text, wav_file, syn_config=syn_config)
 
     # synthesize actual book titles
-    book_titles = sorted(item.name for item in Path("Data", "Books").iterdir() if item.is_file() and str(item).endswith(".audib"))
-    if book_titles:
-        for idx, title in enumerate(book_titles, start=1):
-            out_path = Path(directory_holder[7], f"{idx}.wav")
-            with wave.open(str(out_path), "wb") as wav_file:
-                voice.synthesize_wav(title.removesuffix(".audib"), wav_file, syn_config=syn_config)
+    generate_book_title_audio()
 
     # save cardinal voice and speed data
     SETTINGS.cardinal_voice_character = VOICE_CHARACTER
@@ -176,3 +169,12 @@ def generate_cardinal_audio():
     SETTINGS.save()
 
     log.debug("Cardinal static audio generated successfully")
+
+def generate_book_title_audio():
+    book_titles = sorted(item.name for item in Path("Data", "Books").iterdir() if item.is_file() and str(item).endswith(".audib"))
+    if book_titles:
+        for idx, title in enumerate(book_titles, start=1):
+            out_path = Path("Data", "Cardinal Audios", "book_titles", "titles", f"{idx}.wav")
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            with wave.open(str(out_path), "wb") as wav_file:
+                voice.synthesize_wav(title.removesuffix(".audib"), wav_file, syn_config=syn_config)
