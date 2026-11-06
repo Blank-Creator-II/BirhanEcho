@@ -128,8 +128,7 @@ class Cardinal:
                                 self.current_page_number = provided_number
                                 self.position = TextID(page_number = self.manifest[self.current_page_number].page_number, block_id = "block_1")
 
-                                audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
-                                self.audio_controller.play(audio_bytes)
+                                self._play_current_reading_audio()
 
                             audio_path = Path("Data", "Cardinal Audios", "book_session", "page_moved.wav")
                             self.audio_controller.play(data=audio_path, is_wav=True, delay=0.0, on_complete=_move_page)
@@ -279,8 +278,7 @@ class Cardinal:
         self.current_page_number = SETTINGS.saved_book_positions[self.audib][1]
         self.position = SETTINGS.saved_book_positions[self.audib][0]
 
-        audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
-        self.audio_controller.play(audio_bytes)
+        self._play_current_reading_audio()
 
     def start_over_reading(self):
         if not self.state == CardinalState.READING: # this command is only allowed on reading mode
@@ -290,16 +288,14 @@ class Cardinal:
         self.current_page_number = pages[0] # the first page number, it doesn't necessarily have to be page number: 1
         self.position = TextID(page_number = self.manifest[self.current_page_number].page_number, block_id = "block_1")
 
-        audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
-        self.audio_controller.play(audio_bytes)
+        self._play_current_reading_audio()
 
     def start_audio_hyperlink(self):
         if not self.state == CardinalState.READING: # this command is only allowed on reading mode
             return
 
         def play_audio_hyperlink():
-            audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position)) # position have been updated to link_1
-            self.audio_controller.play(audio_bytes)
+            self._play_current_reading_audio() # position has been updated to link_1
         
         if self.manifest[self.current_page_number].reading_flow[self._get_id(self.position.block_id)-1].audio_hyperlinks and not self.position.link_id:
             self.position.link_id = "link_1"
@@ -335,8 +331,7 @@ class Cardinal:
 
             case CardinalState.WAITING_FOR_NUMBER:
                 self.state = CardinalState.READING
-                audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
-                self.audio_controller.play(audio_bytes)
+                self._play_current_reading_audio()
 
             case _:
                 log.warning("A user have achieved the impossible with creating an 8th state of Cardinal!")
@@ -449,8 +444,7 @@ class Cardinal:
                 log.debug("Audib finished")
                 return
 
-        audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
-        self.audio_controller.play(audio_bytes)        
+        self._play_current_reading_audio()
 
     def next_audio(self):
         if not self.state == CardinalState.READING: # this command is only allowed on reading mode
@@ -479,15 +473,15 @@ class Cardinal:
                 log.debug("Audib finished")
                 return
         
-        audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
-        self.audio_controller.play(audio_bytes)
+        self._play_current_reading_audio()
 
     def help_audio(self):
         def _replay():
             self.audio_controller.play(
                 data=audio_replay_path,
                 is_wav=False if self.state == CardinalState.READING else True,
-                delay=1.0
+                delay=1.0,
+                subtitle=self._current_reading_subtitle() if self.state == CardinalState.READING else "",
             )
 
         match self.state:
@@ -537,8 +531,7 @@ class Cardinal:
 
     def replay_audio(self):
             def _replay():
-                audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
-                self.audio_controller.play(audio_bytes, delay=1.0)
+                self._play_current_reading_audio(delay=1.0)
 
             audio_path = Path("Data", "Cardinal Audios", "system_prompts", "replaying.wav")
             self.audio_controller.play(data=audio_path, is_wav=True, delay=1.0, on_complete=_replay)
@@ -573,7 +566,8 @@ class Cardinal:
             self.audio_controller.play(
                 data=audio_replay_path,
                 is_wav=False if self.state == CardinalState.READING else True,
-                delay=1.0
+                delay=1.0,
+                subtitle=self._current_reading_subtitle() if self.state == CardinalState.READING else "",
             )
 
         audio_path = Path("Data", "Cardinal Audios", "system_prompts", "voice_changed.wav")
@@ -627,6 +621,23 @@ class Cardinal:
             return f"page{textID.page_number}_{textID.block_id}_{textID.link_id}.wav"
         else:
             return f"page{textID.page_number}_{textID.block_id}.wav"
+
+    def _current_reading_subtitle(self) -> str:
+        block = self.manifest[self.current_page_number].reading_flow[self._get_id(self.position.block_id) - 1]
+        if self.position.link_id:
+            link = block.audio_hyperlinks[self._get_id(self.position.link_id) - 1]
+            return f"{link.term}: {link.explanation}"
+        if block.context_title:
+            return f"{block.context_title}. {block.text}"
+        return block.text
+
+    def _play_current_reading_audio(self, delay: float = 0.0):
+        audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
+        self.audio_controller.play(
+            audio_bytes,
+            delay=delay,
+            subtitle=self._current_reading_subtitle(),
+        )
 
     def _get_id(self, data: str) -> int:
         name, id = data.split("_")
