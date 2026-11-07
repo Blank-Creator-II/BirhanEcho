@@ -8,7 +8,7 @@ import wave
 import numpy as np
 from pygame import mixer
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional, Sequence
 from cardinal_state import CardinalState
 
 if TYPE_CHECKING:
@@ -20,6 +20,7 @@ class AudioController:
     POLL_INTERVAL = 0.05   # how often the watcher checks for end-of-track
     START_GRACE = 0.2      # ignore "not busy" briefly right after starting
     MAX_SUBTITLE_WORDS = 10
+    PHRASE_PAUSE = 0.5
 
     def __init__(self, cardinal: "Cardinal"):
         self.cardinal = cardinal
@@ -43,7 +44,17 @@ class AudioController:
         if not mixer.get_init():
             mixer.init()
 
-    def play(self, data, is_wav: bool = False, delay: float = 1.0, on_complete: Optional[Callable[[], None]] = None, subtitle: str = "",):
+    def play(
+        self,
+        data,
+        is_wav: bool = False,
+        delay: float = 1.0,
+        on_complete: Optional[Callable[[], None]] = None,
+        subtitle: str = "",
+        has_phrase_pauses: bool = False,
+        subtitle_phrases: Optional[Sequence[str]] = None,
+        subtitle_phrase_durations: Optional[Sequence[float]] = None,
+    ):
         # claim a new token immediately: this cancels any older pending play()
         with self._lock:
             self._token += 1
@@ -105,7 +116,13 @@ class AudioController:
             self.is_paused = False
             self._subtitle = subtitle or self._get_static_subtitle(data)
             self._audio_duration = audio_duration
-            self._subtitle_schedule = self._make_subtitle_schedule(self._subtitle, audio_duration)
+            self._subtitle_schedule = self._make_subtitle_schedule(
+                self._subtitle,
+                audio_duration,
+                phrases=subtitle_phrases if has_phrase_pauses else None,
+                phrase_pause=self.PHRASE_PAUSE if has_phrase_pauses else 0.0,
+                phrase_durations=subtitle_phrase_durations if has_phrase_pauses else None,
+            )
             self._play_started_at = time.monotonic()
             self._start_watcher(token, on_complete)
         log.debug(f"Playing audio track.")
@@ -275,33 +292,78 @@ class AudioController:
             return self._subtitle_schedule[-1][1]
 
     @classmethod
-    def _make_subtitle_schedule(cls, text: str, duration: float) -> tuple[tuple[float, str], ...]:
+    def _make_subtitle_schedule(
+        cls,
+        text: str,
+        duration: float,
+        phrases: Optional[Sequence[str]] = None,
+        phrase_pause: float = 0.0,
+        phrase_durations: Optional[Sequence[float]] = None,
+    ) -> tuple[tuple[float, str], ...]:
         if not text.strip() or duration <= 0:
             return ()
 
-        chunks = []
-        for sentence in re.split(r"(?<=[.!?])\s+", text.strip()):
-            words = sentence.split()
-            while len(words) > cls.MAX_SUBTITLE_WORDS:
-                chunk_end = cls.MAX_SUBTITLE_WORDS
-                for candidate in range(cls.MAX_SUBTITLE_WORDS, 7, -1):
-                    if words[candidate - 1].endswith((",", ";", ":")):
-                        chunk_end = candidate
-                        break
-                chunks.append(" ".join(words[:chunk_end]))
-                words = words[chunk_end:]
-            if words:
-                chunks.append(" ".join(words))
+        subtitle_phrases = (
+            [phrase.strip() for phrase in phrases if phrase.strip()]
+            if phrases is not None
+            else re.split(r"(?<=[.!?])\s+", text.strip())
+        )
+        chunks: list[tuple[int, str]] = []
+        for phrase_index, phrase in enumerate(subtitle_phrases):
+            for sentence in re.split(r"(?<=[.!?])\s+", phrase.strip()):
+                words = sentence.split()
+                while len(words) > cls.MAX_SUBTITLE_WORDS:
+                    chunk_end = cls.MAX_SUBTITLE_WORDS
+                    for candidate in range(cls.MAX_SUBTITLE_WORDS, 7, -1):
+                        if words[candidate - 1].endswith((",", ";", ":")):
+                            chunk_end = candidate
+                            break
+                    chunks.append((phrase_index, " ".join(words[:chunk_end])))
+                    words = words[chunk_end:]
+                if words:
+                    chunks.append((phrase_index, " ".join(words)))
+
+        if phrase_durations is not None:
+            if len(phrase_durations) != len(subtitle_phrases):
+                raise ValueError("Subtitle phrase durations must match the non-empty subtitle phrases.")
+            elapsed = 0.0
+            schedule = []
+            for phrase_index, phrase_duration in enumerate(phrase_durations):
+                phrase_chunks = [chunk for index, chunk in chunks if index == phrase_index]
+                if not phrase_chunks:
+                    continue
+                if phrase_duration < 0:
+                    raise ValueError("Subtitle phrase durations cannot be negative.")
+                phrase_weight = sum(
+                    len(chunk.split()) + (0.35 if chunk.endswith((".", "!", "?")) else 0)
+                    for chunk in phrase_chunks
+                )
+                for chunk_index, chunk in enumerate(phrase_chunks):
+                    weight = len(chunk.split()) + (0.35 if chunk.endswith((".", "!", "?")) else 0)
+                    elapsed += phrase_duration * weight / phrase_weight
+                    is_last_phrase_chunk = chunk_index == len(phrase_chunks) - 1
+                    if is_last_phrase_chunk and phrase_index < len(phrase_durations) - 1:
+                        elapsed += phrase_pause
+                    if phrase_index == len(phrase_durations) - 1 and is_last_phrase_chunk:
+                        elapsed = duration
+                    schedule.append((elapsed, chunk))
+            return tuple(schedule)
 
         total_weight = sum(
             len(chunk.split()) + (0.35 if chunk.endswith((".", "!", "?")) else 0)
-            for chunk in chunks
+            for _, chunk in chunks
         )
+        gap_count = max(len(subtitle_phrases) - 1, 0) if phrase_pause > 0 else 0
+        effective_pause = min(phrase_pause, duration / (gap_count + 1)) if gap_count else 0.0
+        speech_duration = duration - effective_pause * gap_count
         elapsed = 0.0
         schedule = []
-        for index, chunk in enumerate(chunks):
+        for index, (phrase_index, chunk) in enumerate(chunks):
             weight = len(chunk.split()) + (0.35 if chunk.endswith((".", "!", "?")) else 0)
-            elapsed += duration * weight / total_weight
+            elapsed += speech_duration * weight / total_weight
+            phrase_ends = index == len(chunks) - 1 or chunks[index + 1][0] != phrase_index
+            if phrase_ends and phrase_index < len(subtitle_phrases) - 1:
+                elapsed += effective_pause
             if index == len(chunks) - 1:
                 elapsed = duration
             schedule.append((elapsed, chunk))

@@ -4,23 +4,24 @@
         "language": "en"
     },
     "system_prompts": {
-        "app_greet": "Greetings. This app is fully voice-controlled. To execute any action, start your speech with the word command. For example, say command, followed by help to hear available commands, or say command, followed by main menu to get started.",
-        "help_general": "To repeat the current speech, say command, followed by repeat. To return to the previous menu, say command, followed by go back. To close the application, say command, followed by exit.",
+        "app_greet": "Greetings. This app is fully voice-controlled. To execute any action, start your speech with the starter key. For example, say the starter key followed by help to hear available options, or say the starter key followed by main menu to get started.",
+        "help_general": "Your starter key is \"command\". Use the starter key to start any request. For each action, say the starter key first, followed by the action. To repeat the current speech, say the starter key followed by repeat. To return to the previous menu, say the starter key followed by go back. To close the application, say the starter key followed by exit.",
         "not_implemented": "This feature is coming soon. Let's go back.",
         "number": "Please provide the number.",
-        "no_go_back": "The system cannot go further back. If you wish to exit the app, please say command followed by exit.",
-        "no_book": "There is no book uploaded to the app. Please upload a book to start. You can do that with command followed by upload.",
+        "no_go_back": "The system cannot go further back. If you wish to exit the app, please say the starter key followed by exit.",
+        "no_book": "There is no book uploaded to the app. Please upload a book to start. You can do that with the starter key followed by upload.",
         "voice_option": "To change the cardinal voice, please state the voice name you want, followed by change, after listening to their voice.",
         "voice_speed": "To change the cardinal voice speed, please provide the percentage of speed increase or decrease you want. To increase the speed by 10%, say 10%. To decrease the speed by 10%, say minus 10%. Please note that the default starts at minus 20% speed.",
         "voice_changed": "Cardinal voice has been changed. Please exit and reopen the app to use the new voice.",
         "voice_speed_changed": "Cardinal voice speed has been updated. Please exit and reopen the app to apply the change.",
         "voice_speed_invalid": "Invalid voice speed. Please give a value between minus 100 and 100.",
         "replaying": "Replaying from the last checkpoint.",
+        "no_folder_file": "No folder or a file exists. Please try again, by providing a correct position number.",
         "exit_app": "Exiting the app. Have a wonderful day!"
     },
     "book_session": {
-        "resume_prompt": "Book loaded. I have found a previous reading session. To continue where you left off, say command, followed by resume. To start from the beginning of the book, say command, followed by start over.",
-        "help_active_reader": "Active reader help. To control playback, say command, followed by pause, play, or stop. To navigate, say command, followed by go forward, go back, or explain more. To hear this again, say command, followed by repeat.",
+        "resume_prompt": "Book loaded. I have found a previous reading session. To continue where you left off, say the starter key followed by resume. To start from the beginning of the book, say the starter key followed by start over.",
+        "help_active_reader": "Active reader help. Your starter key is \"command\". Use the starter key to start any request. To control playback, say the starter key followed by pause, play, or stop. To navigate, say the starter key followed by go forward, go back, or explain more. To hear this again, say the starter key followed by repeat.",
         "audio_hyperlink_started": "Explaining key terms.",
         "no_audio_hyperlink": "There are no additional explanations detected for the current text.",
         "page_moved": "Moving to the page.",
@@ -28,8 +29,8 @@
     },
     "menus": {
         "main_menu": {
-            "intro": "Main Menu. Please choose an option by saying command, followed by the title, or call for help by saying command followed by help.",
-            "help": "Say command, followed by list books to browse textbooks, command, followed by upload to add new materials, command, followed by options for settings, or command, followed by exit to quit.",
+            "intro": "Main Menu. Please choose an option by saying the starter key followed by the title, or call for help by saying the starter key followed by help.",
+            "help": "Your starter key is \"command\". Use the starter key to start any request. Say the starter key followed by list books to browse textbooks, the starter key followed by upload to add new materials, the starter key followed by options for settings, or the starter key followed by exit to quit.",
             "options": [
                 {
                     "id": "1",
@@ -59,7 +60,7 @@
         },
         "options_menu": {
             "intro": "Settings Menu. Choose an option to change.",
-            "help": "Say command, followed by change voice, or command, followed by change speed.",
+            "help": "Your starter key is \"command\". Use the starter key to start any request. Say the starter key followed by change voice, or the starter key followed by change speed.",
             "options": [
                 {
                     "id": "1",
@@ -78,11 +79,11 @@
     },
     "book_titles": {
         "intro": "Listing available books. To load and start the book of your choice, say the number assigned to the book.",
-        "help_chose_title": "Say the given number of the book to load it. To listen again to the list of books and their numbers, say command followed by list books or repeat when spoken.",
+        "help_chose_title": "Your starter key is \"command\". Use the starter key to start any request. Say the given number of the book to load it. To listen again to the list of books and their numbers, say the starter key followed by list books or repeat when spoken.",
         "no_book": "Invalid book number. Please try again."
     },
     "voice_test": {
-        "Jane": "This is Jane. I am available to read text, explain terms, and manage the app accurately and efficiently without unnecessary inflection. Awaiting your command.",
+        "Jane": "This is Jane. I am available to read text, explain terms, and manage the app accurately and efficiently without unnecessary inflection. Ready when you are.",
         "Grace": "Hey, I'm Grace! I'm super excited to help you out today. Let's read and discover something amazing together. What are we diving into first?",
         "Raven": "I am Raven. Take your time, pay close attention, and we shall master whatever lies ahead. Whenever you are ready, we may begin."
     }

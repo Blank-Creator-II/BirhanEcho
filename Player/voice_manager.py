@@ -1,7 +1,9 @@
 import os
+import io
 import json
 import wave
 import logging
+import numpy as np
 from piper import PiperVoice
 from piper.config import SynthesisConfig
 from pathlib import Path
@@ -178,3 +180,45 @@ def generate_book_title_audio():
             out_path.parent.mkdir(parents=True, exist_ok=True)
             with wave.open(str(out_path), "wb") as wav_file:
                 voice.synthesize_wav(title.removesuffix(".audib"), wav_file, syn_config=syn_config)
+
+def generate_dynamic_audio(phrases: list[str], pause_seconds: float = 0.5, sample_rate: int = 22050,) -> tuple[bytes, tuple[float, ...]]:
+    final_pcm_chunks = []
+    phrase_durations = []
+    spoken_phrases = [text for text in phrases if text.strip()]
+
+    silence_samples = int(sample_rate * pause_seconds)
+    silence_bytes = np.zeros(silence_samples, dtype=np.int16).tobytes()
+
+    for idx, text in enumerate(spoken_phrases):
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(sample_rate)
+            voice.synthesize_wav(text, wf, syn_config=syn_config)
+
+        buf.seek(0)
+        with wave.open(buf, "rb") as phrase_wav:
+            if (
+                phrase_wav.getframerate() != sample_rate
+                or phrase_wav.getnchannels() != 1
+                or phrase_wav.getsampwidth() != 2
+            ):
+                raise ValueError("Dynamic phrase audio must be 16-bit mono WAV at the requested sample rate.")
+            phrase_durations.append(phrase_wav.getnframes() / sample_rate)
+            final_pcm_chunks.append(phrase_wav.readframes(phrase_wav.getnframes()))
+
+        if idx < len(spoken_phrases) - 1:
+            final_pcm_chunks.append(silence_bytes)
+
+    final_buffer = io.BytesIO()
+    with wave.open(final_buffer, "wb") as final_wf:
+        final_wf.setnchannels(1)
+        final_wf.setsampwidth(2)
+        final_wf.setframerate(sample_rate)
+
+        for chunk in final_pcm_chunks:
+            final_wf.writeframes(chunk)
+
+    final_buffer.seek(0)
+    return final_buffer.read(), tuple(phrase_durations)

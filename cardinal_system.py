@@ -1,8 +1,11 @@
 import shutil
 import os
 import json
+import time
 import logging
 import threading
+import webview
+from webview import Window
 from word2number import w2n
 from singleton import SETTINGS
 from cardinal_state import CardinalState
@@ -10,7 +13,8 @@ from Player.speech_manager import listen_for_commands
 from Player.audio_manager import AudioController
 from Player.audib_manager import *
 from Player.audib_manifest_model import PageData, TextID
-from Player.voice_manager import generate_voice, generate_cardinal_audio, generate_book_title_audio
+from Player.voice_manager import generate_voice, generate_cardinal_audio, generate_book_title_audio, generate_dynamic_audio
+from Processor.processor import TextbookProcessor
 
 logging.basicConfig(
     level=logging.DEBUG,  # Capture DEBUG level and above (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -20,7 +24,10 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 class Cardinal:
-    def __init__(self):
+    def __init__(self, window: Window):
+        self.window = window
+        self.root_dir: Path = Path(Path.home(), "Documents") 
+        self.current_path: Path = self.root_dir
         self.state: CardinalState = CardinalState.INTRO_PAGE
         self.speech_listener_off_event = threading.Event()
         self.audio_controller = AudioController(self)
@@ -71,7 +78,7 @@ class Cardinal:
 
             # menu & configuration choices
             ("command list books", lambda: self.list_books()),
-            #TODO: ("command upload", lambda: self.placeholder()),
+            ("command upload", lambda: self.upload_book()),
             ("command options", lambda: self.option_menu()),
             ("command change voice", lambda: self.change_voice()),
             ("command change speed", lambda: self.change_speed()),
@@ -97,6 +104,9 @@ class Cardinal:
             ("change grace", lambda: self._change_voice_to("Grace")),
             ("change jane", lambda: self._change_voice_to("Jane")),
             ("change raven", lambda: self._change_voice_to("Raven")),
+
+            # directory navigation
+            ("command move back", lambda: self.move_back()),
         ]
 
         earliest_keyword = None
@@ -111,7 +121,7 @@ class Cardinal:
                 earliest_keyword = keyword
                 earliest_action = action
 
-        is_waiting_for_value = (self.state == CardinalState.WAITING_FOR_NUMBER or self.state == CardinalState.WAITING_FOR_BOOK or self.state == CardinalState.WAITING_FOR_OPTION)
+        is_waiting_for_value = (self.state == CardinalState.WAITING_FOR_NUMBER or self.state == CardinalState.WAITING_FOR_BOOK or self.state == CardinalState.WAITING_FOR_OPTION or self.state == CardinalState.WAITING_FOR_PATH)
         if is_waiting_for_value and earliest_keyword not in ("command repeat", "command help", "command go back", "command exit", "command main menu", "command pause", "command stop", "command play", "command continue"):
             self._cancel_repeating_audio()
             log.debug(f"Received raw text for number conversion: '{text}'")
@@ -167,9 +177,63 @@ class Cardinal:
 
                             self.state = CardinalState.OPTIONS_MENU
                             audio_path = Path("Data", "Cardinal Audios", "system_prompts", "voice_speed_invalid.wav")
-                            self.audio_controller.play(data=audio_path, is_wav=True, delay=0.0, on_complete=_retry)  
-                        
+                            self.audio_controller.play(data=audio_path, is_wav=True, delay=0.0, on_complete=_retry)
 
+                    case CardinalState.WAITING_FOR_PATH:
+                        directory: list[str] = []
+                        folders, files = self._get_directory_contents()
+                        directory = folders + files
+
+                        for idx, name in enumerate(directory, start=1):
+                            if idx == provided_number:
+                                if name.endswith(".pdf") or name.endswith(".audib"): # loadable file
+                                    file = self._select_file(name)
+
+                                    if file and file.suffix == ".pdf":
+                                        self.state = CardinalState.PATH_LISTING
+                                        processor = TextbookProcessor(file)
+                                        processor.process_textbook()
+
+                                        self.create_audib(Path("Books", name.removesuffix(".pdf"), "json"))
+                                        self.load_audib(Path("Data", "Books", f"{name.removesuffix(".pdf")}.audib"))
+                                        return
+                                    else:
+                                        destination_path = Path("Data", "Books")
+                                        destination_path.mkdir(parents=True, exist_ok=True)
+
+                                        shutil.copy2(file, destination_path) # copy to always make it available from menu
+                                        generate_book_title_audio() # make title audio for it
+                                        self.load_audib(Path("Data", "Books", name))
+                                        return
+                                    
+                                else:
+                                    def _new_dir_listing():
+                                        self.state = CardinalState.PATH_LISTING
+                                        directory_list_names = self._navigate_open(name)
+
+                                        audio_bytes, phrase_durations = generate_dynamic_audio(directory_list_names)
+                                        self._audio_repeater(
+                                            repeat_command=_new_dir_listing,
+                                            repeat_delay=10.0,
+                                            audio_delay=1.0,
+                                            audio_path=audio_bytes,
+                                            is_wav=False,
+                                            state_change=CardinalState.WAITING_FOR_PATH,
+                                            audio_subtitle=' '.join(directory_list_names),
+                                            audio_subtitle_phrases=directory_list_names,
+                                            audio_subtitle_phrase_durations=phrase_durations,
+                                        )
+
+                                    _new_dir_listing()
+                                    return
+                            
+                        def _retry():
+                            self.state = CardinalState.WAITING_FOR_PATH
+
+                        self.state = CardinalState.PATH_LISTING
+                        audio_path = Path("Data", "Cardinal Audios", "system_prompts", "no_folder_file.wav")
+                        self.audio_controller.play(data=audio_path, is_wav=True, delay=0.0, on_complete=_retry)        
+        
             except ValueError:
                 log.warning(f"Could not parse a valid number from: '{text}'")
 
@@ -189,6 +253,25 @@ class Cardinal:
             else:
                 self._cancel_repeating_audio()
                 earliest_action()
+
+    def initialize_audio_data_sender(self):
+        threading.Thread(target=self.send_audio_data_to_gui, daemon=True).start()
+    
+    def send_audio_data_to_gui(self):
+        last_subtitle = None
+        while True:
+            levels = self.audio_controller.get_current_audio_levels()
+            self.window.evaluate_js(
+                "window.viz.setAudioLevels("
+                f"{levels[0]:.3f},{levels[1]:.3f},{levels[2]:.3f},{levels[3]:.3f})"
+            )
+            
+            subtitle = self.audio_controller.subtitle
+            if subtitle != last_subtitle:
+                self.window.evaluate_js(f"window.viz.setSubtitle({json.dumps(subtitle)})")
+                last_subtitle = subtitle
+
+            time.sleep(1 / 30)
 
     def _cancel_repeating_audio(self):
         with self._repeat_lock:
@@ -332,6 +415,12 @@ class Cardinal:
             case CardinalState.WAITING_FOR_NUMBER:
                 self.state = CardinalState.READING
                 self._play_current_reading_audio()
+
+            case CardinalState.PATH_LISTING:
+                self.main_menu()
+
+            case CardinalState.WAITING_FOR_PATH:
+                self.main_menu()
 
             case _:
                 log.warning("A user have achieved the impossible with creating an 8th state of Cardinal!")
@@ -549,15 +638,100 @@ class Cardinal:
             state_change=CardinalState.WAITING_FOR_NUMBER
         )
 
+    def upload_book(self):
+        self.state = CardinalState.PATH_LISTING
+        self.audio_controller.stop()
+        initial_text_list = self._generate_spoken_dir_list()
+        audio_bytes, phrase_durations = generate_dynamic_audio(initial_text_list)
+        self._audio_repeater(
+            repeat_command=self.upload_book,
+            repeat_delay=10.0,
+            audio_delay=1.0,
+            audio_path=audio_bytes,
+            is_wav=False,
+            state_change=CardinalState.WAITING_FOR_PATH,
+            audio_subtitle=' '.join(initial_text_list),
+            audio_subtitle_phrases=initial_text_list,
+            audio_subtitle_phrase_durations=phrase_durations,
+        )
+
+    def move_back(self):
+        if self.state != CardinalState.PATH_LISTING:
+            return
+        
+        if self.current_path > self.root_dir:
+            self.current_path = self.current_path.parent
+            log.info(f"Moved back to: {self.current_path}")
+            self.audio_controller.stop()
+            directory_list_names = self._generate_spoken_dir_list()
+
+            def _dir_listing():
+                audio_bytes, phrase_durations = generate_dynamic_audio(directory_list_names)
+                self._audio_repeater(
+                    repeat_command=_dir_listing,
+                    repeat_delay=10.0,
+                    audio_delay=1.0,
+                    audio_path=audio_bytes,
+                    is_wav=False,
+                    state_change=CardinalState.WAITING_FOR_PATH,
+                    audio_subtitle=' '.join(directory_list_names),
+                    audio_subtitle_phrases=directory_list_names,
+                    audio_subtitle_phrase_durations=phrase_durations,
+                )
+
     def shutdown(self):
         def close_listener_loop():
             SETTINGS.save()
             self.speech_listener_off_event.set()
             self._save_book_position()
             log.debug("Speech receiver closed successfully")
+            self.window.destroy()
 
         audio_path = Path("Data", "Cardinal Audios", "system_prompts", "exit_app.wav")
         self.audio_controller.play(data=audio_path, is_wav=True, delay=1.0, on_complete=close_listener_loop)
+
+    def _navigate_open(self, target_name: str) -> str:
+        target_path = self.current_path / target_name
+        if target_path.is_dir():
+            self.current_path = target_path.resolve()
+            log.info(f"Navigated into: {self.current_path}")
+            return self._generate_spoken_dir_list()
+        return "Folder not found. Please try again with different folder."
+
+    def _select_file(self, filename: str) -> Path | None:
+        file_path = self.current_path / filename
+        if file_path.is_file() and file_path.suffix.lower() in ['.pdf', '.audib']:
+            log.info(f"File selected for ingestion: {file_path}")
+            return file_path
+        return None
+
+    def _get_directory_contents(self) -> tuple[list[str], list[str]]:
+        folders = [d.name for d in self.current_path.iterdir() if d.is_dir()]
+        files = [f.name for f in self.current_path.iterdir() if f.is_file() and f.suffix.lower() in ['.pdf', '.audib']]
+        return sorted(folders), sorted(files)
+
+    def _generate_spoken_dir_list(self) -> list[str]:
+        folders, files = self._get_directory_contents()
+        
+        location_name = self.current_path.name if self.current_path != self.root_dir else "Documents"
+
+        directory_list: list[str] = []
+        directory_list.append(f"Currently inside the folder {location_name}. To load a folder or a file please say the number at which it is located. For example to load a folder that is listed on the fifth position say the number five.")
+        folder_count = 0
+        
+        if folders:
+            directory_list.append("Currently available folders to open are.")
+            for idx, name in enumerate(folders, start=1):
+                directory_list.append(f"Location {idx}. {name}.")
+                folder_count += 1
+        if files:
+            directory_list.append("Currently available files to load are.")
+            for idx, name in enumerate(files, start=folder_count+1):
+                directory_list.append(f"Location {idx}. {name}.")
+        if not folders and not files:
+            directory_list.append("The current folder is empty. To go back to the previous folder say the starter key followed by move back.")
+            
+        return directory_list
 
     def _change_voice_to(self, voice: str):
         SETTINGS.cardinal_voice_character = voice
@@ -643,7 +817,7 @@ class Cardinal:
         name, id = data.split("_")
         return int(id)
 
-    def _audio_repeater(self, repeat_command: function, repeat_delay: float, audio_delay: float, audio_path: Path, is_wav: bool, state_change: CardinalState = None):
+    def _audio_repeater(self, repeat_command: function, repeat_delay: float, audio_delay: float, audio_path: Path, is_wav: bool, state_change: CardinalState = None, audio_subtitle: str = "", audio_subtitle_phrases: list[str] | None = None, audio_subtitle_phrase_durations: tuple[float, ...] | None = None):
         current_thread = threading.current_thread()
         with self._repeat_lock:
             if current_thread in self._repeat_threads:
@@ -677,7 +851,11 @@ class Cardinal:
                             data=audio_path,
                             is_wav=is_wav,
                             delay=0.0,
-                            on_complete=on_playback_complete
+                            on_complete=on_playback_complete,
+                            subtitle=audio_subtitle,
+                            has_phrase_pauses=audio_subtitle_phrases is not None,
+                            subtitle_phrases=audio_subtitle_phrases,
+                            subtitle_phrase_durations=audio_subtitle_phrase_durations,
                         )
                         return self.audio_controller.is_playing
 

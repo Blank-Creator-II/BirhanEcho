@@ -55,6 +55,9 @@ allowed_commands = [
     "change grace",
     "change jane",
     "change raven",
+
+    # directory navigation
+    "command move back",
     
     "[unk]"  # Unknown word catch-all for Vosk grammar constraint
 ]
@@ -98,7 +101,7 @@ def listen_for_commands(cardinal: "Cardinal", stop_event: threading.Event):
                         break
 
                     # Select recognizer instance based on current Cardinal state
-                    is_waiting_for_value = (cardinal.state == CardinalState.WAITING_FOR_NUMBER or cardinal.state == CardinalState.WAITING_FOR_BOOK or cardinal.state == CardinalState.WAITING_FOR_OPTION)
+                    is_waiting_for_value = (cardinal.state == CardinalState.WAITING_FOR_NUMBER or cardinal.state == CardinalState.WAITING_FOR_BOOK or cardinal.state == CardinalState.WAITING_FOR_OPTION or cardinal.state == CardinalState.WAITING_FOR_PATH)
                     if is_waiting_for_value:
                         active_recognizer = number_recognizer
                     else:
