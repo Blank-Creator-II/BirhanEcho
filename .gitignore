@@ -223,7 +223,10 @@ __marimo__/
 Voices/
 # STT Models
 Vosk/
-# Temp data
+# User data
+Books/
 audio/
 Data/Books/
+Data/settings.json
 Test/
+Log/

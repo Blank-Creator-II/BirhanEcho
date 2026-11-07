@@ -41,8 +41,15 @@ class AudioController:
         self._play_started_at = 0.0
         self._static_subtitles = self._load_static_subtitles()
 
-        if not mixer.get_init():
-            mixer.init()
+        mixer_state = mixer.get_init()
+        log.info("Initializing AudioController: mixer_state=%s", mixer_state)
+        if not mixer_state:
+            try:
+                mixer.init()
+            except Exception:
+                log.exception("Unable to initialize the pygame mixer.")
+                raise
+            log.info("Pygame mixer initialized: %s", mixer.get_init())
 
     def play(
         self,
@@ -66,12 +73,24 @@ class AudioController:
             self._play_started_at = 0.0
             self._close_sample_reader()
 
+        source_description = str(data) if is_wav else f"{type(data).__name__} bytes={len(data)}"
+        log.info(
+            "Audio play requested: token=%s source=%s is_wav=%s delay=%s subtitle_length=%s has_completion=%s",
+            token,
+            source_description,
+            is_wav,
+            delay,
+            len(subtitle),
+            on_complete is not None,
+        )
+
         # pause between track transitions
         if delay > 0:
             time.sleep(delay)
 
         with self._lock:
             if token != self._token:
+                log.debug("Audio play superseded before load: token=%s current_token=%s", token, self._token)
                 return  # superseded by a newer play()/stop() during the delay
 
             # Save reference parameters for clean replaying
@@ -82,8 +101,8 @@ class AudioController:
             source = io.BytesIO(data) if not is_wav else data
             try:
                 mixer.music.load(source)
-            except Exception as e:
-                log.error(f"Failed to play audio: {e}")
+            except Exception:
+                log.exception("Failed to load audio source: token=%s source=%s", token, source_description)
                 self._raw_data = None
                 self._close_sample_reader()
                 self.is_playing = self.is_paused = False
@@ -96,17 +115,25 @@ class AudioController:
                 frame_rate = self._sample_reader.getframerate()
                 if frame_rate > 0:
                     audio_duration = self._sample_reader.getnframes() / frame_rate
+                log.debug(
+                    "Read WAV metadata: token=%s duration=%.3fs sample_rate=%s channels=%s sample_width=%s",
+                    token,
+                    audio_duration,
+                    frame_rate,
+                    self._sample_reader.getnchannels(),
+                    self._sample_reader.getsampwidth(),
+                )
                 if self._sample_reader.getsampwidth() != 2:
                     log.warning("Audio visualization supports 16-bit PCM WAV files only.")
                     self._close_sample_reader()
             except (wave.Error, EOFError, OSError) as e:
-                log.warning(f"Unable to read audio samples for visualization: {e}")
+                log.warning("Unable to read audio samples for visualization: token=%s error=%s", token, e)
                 self._close_sample_reader()
 
             try:
                 mixer.music.play()
-            except Exception as e:
-                log.error(f"Failed to play audio: {e}")
+            except Exception:
+                log.exception("Failed to start audio playback: token=%s source=%s", token, source_description)
                 self._raw_data = None
                 self._close_sample_reader()
                 self.is_playing = self.is_paused = False
@@ -125,21 +152,25 @@ class AudioController:
             )
             self._play_started_at = time.monotonic()
             self._start_watcher(token, on_complete)
-        log.debug(f"Playing audio track.")
+        log.info("Audio playback started: token=%s duration=%.3fs", token, audio_duration)
 
     def pause(self):
         with self._lock:
             if self.is_playing and not self.is_paused:
                 mixer.music.pause()
                 self.is_paused = True
-                log.debug("Playback paused.")
+                log.info("Playback paused: token=%s", self._token)
+            else:
+                log.debug("Pause ignored: is_playing=%s is_paused=%s token=%s", self.is_playing, self.is_paused, self._token)
 
     def resume(self):
         with self._lock:
             if self.is_playing and self.is_paused:
                 mixer.music.unpause()
                 self.is_paused = False
-                log.debug("Playback resumed.")
+                log.info("Playback resumed: token=%s", self._token)
+            else:
+                log.debug("Resume ignored: is_playing=%s is_paused=%s token=%s", self.is_playing, self.is_paused, self._token)
 
     def toggle_pause(self):
         with self._lock:
@@ -153,7 +184,7 @@ class AudioController:
             self._token += 1  # invalidate watcher / pending play()
             self._halt()
             self._subtitle = ""
-            log.debug("Playback stopped.")
+            log.info("Playback stopped: token=%s", self._token)
 
     def replay(self):
         with self._lock:
@@ -167,18 +198,19 @@ class AudioController:
             try:
                 # always generate a fresh BytesIO stream from the stored raw bytes so we don't get ValueError: I/O operation on closed file.
                 source = io.BytesIO(self._raw_data) if not self._is_wav else self._raw_data
+                log.info("Replay requested: token=%s is_wav=%s", token, self._is_wav)
                 mixer.music.stop()
                 mixer.music.load(source)
                 mixer.music.play()
                 self._play_started_at = time.monotonic()
-            except Exception as e:
-                log.error(f"Failed to replay audio: {e}")
+            except Exception:
+                log.exception("Failed to replay audio: token=%s is_wav=%s", token, self._is_wav)
                 return
 
             self.is_playing = True
             self.is_paused = False
             self._start_watcher(token, on_complete=self.current_on_complete_method)
-            log.debug("Restarted playback.")
+            log.info("Replay started: token=%s", token)
 
     def get_position(self) -> float:
         with self._lock:
@@ -203,6 +235,7 @@ class AudioController:
             time.sleep(self.POLL_INTERVAL)
             with self._lock:
                 if token != self._token:
+                    log.debug("Audio watcher superseded: token=%s current_token=%s", token, self._token)
                     return  # stopped, replaced, or replayed: not our track
                 if self.is_paused:
                     continue
@@ -217,13 +250,20 @@ class AudioController:
                 self._subtitle = ""
                 self._token += 1  # make sure nothing else fires for this track
 
-            log.debug("End of audio reached.")
+            log.info("Audio playback completed: token=%s", token)
             
             # Execute the specific completion callback if provided, otherwise check state
-            if on_complete:
-                on_complete()
-            elif self.cardinal.state == CardinalState.READING:
-                self.on_end()
+            try:
+                if on_complete:
+                    log.debug("Running audio completion callback: token=%s", token)
+                    on_complete()
+                elif self.cardinal.state == CardinalState.READING:
+                    log.debug("Advancing reader after audio completion: token=%s", token)
+                    self.on_end()
+                else:
+                    log.debug("No completion action for audio: token=%s state=%s", token, self.cardinal.state)
+            except Exception:
+                log.exception("Audio completion action failed: token=%s", token)
             return
 
     def get_current_audio_levels(self) -> tuple[float, float, float, float]:

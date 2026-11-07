@@ -3,7 +3,26 @@ import os
 import json
 import time
 import logging
+from logging.handlers import RotatingFileHandler
 import threading
+from pathlib import Path
+
+log_directory = Path("Logs")
+log_directory.mkdir(parents=True, exist_ok=True)
+file_handler = RotatingFileHandler(
+    log_directory / f"birhanecho.log",
+    maxBytes=5 * 1024 * 1024,
+    backupCount=5,
+    encoding="utf-8",
+)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[logging.StreamHandler(), file_handler],
+)
+log = logging.getLogger(__name__)
+
 import webview
 from webview import Window
 from word2number import w2n
@@ -16,15 +35,9 @@ from Player.audib_manifest_model import PageData, TextID
 from Player.voice_manager import generate_voice, generate_cardinal_audio, generate_book_title_audio, generate_dynamic_audio
 from Processor.processor import TextbookProcessor
 
-logging.basicConfig(
-    level=logging.DEBUG,  # Capture DEBUG level and above (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
-log = logging.getLogger(__name__)
-
 class Cardinal:
     def __init__(self, window: Window):
+        log.debug("Initializing Cardinal System instance.")
         self.window = window
         self.root_dir: Path = Path(Path.home(), "Documents") 
         self.current_path: Path = self.root_dir
@@ -43,16 +56,19 @@ class Cardinal:
         condition_1 = not Path("Data", "Cardinal Audios", "system_prompts", "app_greet.wav").is_file()
         condition_2 = SETTINGS.cardinal_voice_character.strip().casefold() != SETTINGS.voice_character.strip().casefold()
         condition_3 = SETTINGS.cardinal_voice_speed != SETTINGS.voice_speed
+        log.debug("Cardinal Audio check: condition_1=%s, condition_2=%s, condition_3=%s", condition_1, condition_2, condition_3)
         if condition_1 or condition_2  or condition_3:
             log.debug("Invalid Cardinal Audio detected. Regenerating audio.")
             if Path("Data", "Cardinal Audios").exists():
+                log.debug("Removing existing Cardinal Audios directory.")
                 shutil.rmtree(str(Path("Data", "Cardinal Audios")))
-                
             generate_cardinal_audio()
 
     def initialize_app_greet(self):
+        log.debug("Initializing app greet. Setting state to INTRO_PAGE.")
         self.state = CardinalState.INTRO_PAGE
         audio_path = Path("Data", "Cardinal Audios", "system_prompts", "app_greet.wav")
+        log.debug("Playing app greet audio: %s", audio_path)
         self._audio_repeater(
             repeat_command=self.initialize_app_greet,
             repeat_delay=15.0,
@@ -62,11 +78,13 @@ class Cardinal:
         )
 
     def initialize_speech_receiver(self):
+        log.debug("Initializing speech receiver thread.")
         receiver = threading.Thread(daemon=False, target=listen_for_commands, args=(self, self.speech_listener_off_event))
         receiver.start()
         log.info("Speech receiver initialized.")
 
     def receive_command(self, text: str ):
+        log.debug("Received command text: '%s' | Current state: %s", text, self.state)
         # map command keywords to their respective player actions
         commands = [
             # system &global commands
@@ -120,30 +138,35 @@ class Cardinal:
                 min_index = idx
                 earliest_keyword = keyword
                 earliest_action = action
+        log.debug("Earliest detected command: %s, index: %s", earliest_keyword, min_index)
 
         is_waiting_for_value = (self.state == CardinalState.WAITING_FOR_NUMBER or self.state == CardinalState.WAITING_FOR_BOOK or self.state == CardinalState.WAITING_FOR_OPTION or self.state == CardinalState.WAITING_FOR_PATH)
         if is_waiting_for_value and earliest_keyword not in ("command repeat", "command help", "command go back", "command exit", "command main menu", "command pause", "command stop", "command play", "command continue"):
+            log.debug("Waiting for value input. State: %s", self.state)
             self._cancel_repeating_audio()
-            log.debug(f"Received raw text for number conversion: '{text}'")
-                
+            log.debug("Received raw text for number conversion: '%s'", text)
             try:
                 provided_number = w2n.word_to_num(text) # convert to int
-                log.info(f"Successfully converted voice to number: {provided_number}")
+                log.info("Successfully converted voice to number: %s", provided_number)
 
+                log.debug("Handling value input for state: %s", self.state)
                 match self.state:
                     case CardinalState.WAITING_FOR_NUMBER:
+                        log.debug("In WAITING_FOR_NUMBER, provided_number: %s, manifest keys: %s", provided_number, list(self.manifest.keys()))
                         if provided_number in list(self.manifest.keys()):
                             def _move_page():
+                                log.debug("Moving to page %s", provided_number)
                                 self.state = CardinalState.READING
                                 self.current_page_number = provided_number
                                 self.position = TextID(page_number = self.manifest[self.current_page_number].page_number, block_id = "block_1")
-
                                 self._play_current_reading_audio()
 
                             audio_path = Path("Data", "Cardinal Audios", "book_session", "page_moved.wav")
+                            log.debug("Playing page moved audio: %s", audio_path)
                             self.audio_controller.play(data=audio_path, is_wav=True, delay=0.0, on_complete=_move_page)
 
                         else:
+                            log.debug("Provided page number %s does not exist in manifest.", provided_number)
                             def _continue():
                                 self.state = CardinalState.WAITING_FOR_NUMBER
 
@@ -153,11 +176,14 @@ class Cardinal:
 
                     case CardinalState.WAITING_FOR_BOOK:
                         book_titles = sorted(item.name for item in Path("Data", "Books").iterdir() if item.is_file() and str(item).endswith(".audib"))
+                        log.debug("Book titles available: %s", book_titles)
                         for idx, title in enumerate(book_titles, start=1):
                             if idx == provided_number:
+                                log.debug("Loading audib for book: %s", title)
                                 self.load_audib(Path("Data", "Books", title))
                                 return
 
+                        log.debug("Provided book number %s does not match any book.", provided_number)
                         def _retry():
                             self.state = CardinalState.WAITING_FOR_BOOK
 
@@ -166,12 +192,14 @@ class Cardinal:
                         self.audio_controller.play(data=audio_path, is_wav=True, delay=0.0, on_complete=_retry)                        
 
                     case CardinalState.WAITING_FOR_OPTION:
+                        log.debug("In WAITING_FOR_OPTION, provided_number: %s", provided_number)
                         if -100 <= provided_number and provided_number <= 100:  
                             SETTINGS.voice_speed = 1 + (-1 * (provided_number / 100)) # 1.2 means 20% slow so have to be inverted
-
+                            log.debug("Voice speed set to: %s", SETTINGS.voice_speed)
                             audio_path = Path("Data", "Cardinal Audios", "system_prompts", "voice_speed_changed.wav")
                             self.audio_controller.play(data=audio_path, is_wav=True, delay=0.0, on_complete=self.option_menu)
                         else:
+                            log.debug("Provided option number %s is invalid for voice speed.", provided_number)
                             def _retry():
                                 self.state = CardinalState.WAITING_FOR_OPTION
 
@@ -180,37 +208,36 @@ class Cardinal:
                             self.audio_controller.play(data=audio_path, is_wav=True, delay=0.0, on_complete=_retry)
 
                     case CardinalState.WAITING_FOR_PATH:
-                        directory: list[str] = []
                         folders, files = self._get_directory_contents()
                         directory = folders + files
-
+                        log.debug("Directory listing for WAITING_FOR_PATH: %s", directory)
                         for idx, name in enumerate(directory, start=1):
                             if idx == provided_number:
+                                log.debug("Selected directory/file: %s", name)
                                 if name.endswith(".pdf") or name.endswith(".audib"): # loadable file
                                     file = self._select_file(name)
-
+                                    log.debug("Selected file: %s", file)
                                     if file and file.suffix == ".pdf":
                                         self.state = CardinalState.PATH_LISTING
                                         processor = TextbookProcessor(file)
+                                        log.debug("Processing textbook: %s", file)
                                         processor.process_textbook()
-
                                         self.create_audib(Path("Books", name.removesuffix(".pdf"), "json"))
                                         self.load_audib(Path("Data", "Books", f"{name.removesuffix(".pdf")}.audib"))
                                         return
                                     else:
                                         destination_path = Path("Data", "Books")
                                         destination_path.mkdir(parents=True, exist_ok=True)
-
                                         shutil.copy2(file, destination_path) # copy to always make it available from menu
+                                        log.debug("Copied file %s to %s", file, destination_path)
                                         generate_book_title_audio() # make title audio for it
                                         self.load_audib(Path("Data", "Books", name))
                                         return
-                                    
                                 else:
                                     def _new_dir_listing():
                                         self.state = CardinalState.PATH_LISTING
                                         directory_list_names = self._navigate_open(name)
-
+                                        log.debug("Navigated into directory: %s, new listing: %s", name, directory_list_names)
                                         audio_bytes, phrase_durations = generate_dynamic_audio(directory_list_names)
                                         self._audio_repeater(
                                             repeat_command=_new_dir_listing,
@@ -223,34 +250,33 @@ class Cardinal:
                                             audio_subtitle_phrases=directory_list_names,
                                             audio_subtitle_phrase_durations=phrase_durations,
                                         )
-
                                     _new_dir_listing()
                                     return
-                            
+                        log.debug("Provided path number %s does not match any entry.", provided_number)
                         def _retry():
                             self.state = CardinalState.WAITING_FOR_PATH
-
                         self.state = CardinalState.PATH_LISTING
                         audio_path = Path("Data", "Cardinal Audios", "system_prompts", "no_folder_file.wav")
                         self.audio_controller.play(data=audio_path, is_wav=True, delay=0.0, on_complete=_retry)        
-        
             except ValueError:
-                log.warning(f"Could not parse a valid number from: '{text}'")
+                log.warning("Could not parse a valid number from: '%s'", text)
 
         # Execute only the single earliest command found
         elif earliest_action:
-            log.debug(f"Detected command: \"{earliest_keyword.split(maxsplit=1)[1]}\"")
+            log.debug("Detected command: '%s' | State: %s", earliest_keyword.split(maxsplit=1)[1], self.state)
             if earliest_keyword in ("command stop", "command pause", "command play", "command continue"):
+                log.debug("Executing playback control command: %s", earliest_keyword)
                 earliest_action()
             elif earliest_keyword == "command repeat":
+                log.debug("Handling repeat command.")
                 with self._repeat_lock:
                     has_repeat_thread = bool(self._repeat_threads)
                     if has_repeat_thread:
                         self._repeat_replay_event.set()
-
                 if not has_repeat_thread:
                     earliest_action()
             else:
+                log.debug("Cancelling repeating audio before executing command: %s", earliest_keyword)
                 self._cancel_repeating_audio()
                 earliest_action()
 
@@ -341,10 +367,18 @@ class Cardinal:
             self.audio_controller.play(data=audio_path, is_wav=True, on_complete=self.main_menu)
 
     def initialize_book_reading(self):
+        log.info(
+            "Initializing book reading: state=%s audib=%s saved_position_exists=%s manifest_pages=%s",
+            self.state,
+            getattr(self, "audib", None),
+            getattr(self, "audib", None) in SETTINGS.saved_book_positions,
+            len(getattr(self, "manifest", {})),
+        )
         self.state = CardinalState.READING
 
         if self.audib in list(SETTINGS.saved_book_positions.keys()):
             audio_path = Path("Data", "Cardinal Audios", "book_session", "resume_prompt.wav")
+            log.debug("Starting resume prompt repeater: audio_path=%s", audio_path)
             self._audio_repeater(
                 repeat_command=self.initialize_book_reading,
                 repeat_delay=15.0,
@@ -353,24 +387,43 @@ class Cardinal:
                 is_wav=True
             )
         else:
+            log.info("No saved position for %s; starting from the first page.", self.audib)
             self.start_over_reading()
 
     def resume_reading(self):
+        log.info("Resume requested: state=%s audib=%s", self.state, getattr(self, "audib", None))
         if not self.state == CardinalState.READING: # this command is only allowed on reading mode
+            log.warning("Ignoring resume request because state is %s, not READING.", self.state)
             return
-        self.current_page_number = SETTINGS.saved_book_positions[self.audib][1]
-        self.position = SETTINGS.saved_book_positions[self.audib][0]
+        try:
+            saved_position = SETTINGS.saved_book_positions[self.audib]
+            self.current_page_number = saved_position[1]
+            self.position = saved_position[0]
+        except Exception:
+            log.exception("Unable to restore saved reading position for audib=%s", self.audib)
+            raise
 
+        log.info("Restored reading position: page=%s position=%s", self.current_page_number, self.position)
         self._play_current_reading_audio()
 
     def start_over_reading(self):
+        log.info(
+            "Start-over requested: state=%s audib=%s manifest_pages=%s",
+            self.state,
+            getattr(self, "audib", None),
+            len(getattr(self, "manifest", {})),
+        )
         if not self.state == CardinalState.READING: # this command is only allowed on reading mode
+            log.warning("Ignoring start-over request because state is %s, not READING.", self.state)
             return
         pages = list(self.manifest.keys())
         pages.sort()
+        if not pages:
+            log.error("Cannot start reading: the audib manifest has no pages (audib=%s).", self.audib)
         self.current_page_number = pages[0] # the first page number, it doesn't necessarily have to be page number: 1
         self.position = TextID(page_number = self.manifest[self.current_page_number].page_number, block_id = "block_1")
 
+        log.info("Starting at first page: page=%s position=%s", self.current_page_number, self.position)
         self._play_current_reading_audio()
 
     def start_audio_hyperlink(self):
@@ -661,7 +714,7 @@ class Cardinal:
         
         if self.current_path > self.root_dir:
             self.current_path = self.current_path.parent
-            log.info(f"Moved back to: {self.current_path}")
+            log.info("Moved back to: %s", self.current_path)
             self.audio_controller.stop()
             directory_list_names = self._generate_spoken_dir_list()
 
@@ -694,14 +747,14 @@ class Cardinal:
         target_path = self.current_path / target_name
         if target_path.is_dir():
             self.current_path = target_path.resolve()
-            log.info(f"Navigated into: {self.current_path}")
+            log.info("Navigated into: %s", self.current_path)
             return self._generate_spoken_dir_list()
         return "Folder not found. Please try again with different folder."
 
     def _select_file(self, filename: str) -> Path | None:
         file_path = self.current_path / filename
         if file_path.is_file() and file_path.suffix.lower() in ['.pdf', '.audib']:
-            log.info(f"File selected for ingestion: {file_path}")
+            log.info("File selected for ingestion: %s", file_path)
             return file_path
         return None
 
@@ -806,12 +859,28 @@ class Cardinal:
         return block.text
 
     def _play_current_reading_audio(self, delay: float = 0.0):
-        audio_bytes = read_audib_audio(self.audib, self._generate_audio_path(self.position))
-        self.audio_controller.play(
-            audio_bytes,
-            delay=delay,
-            subtitle=self._current_reading_subtitle(),
+        audio_name = self._generate_audio_path(self.position)
+        log.debug(
+            "Preparing reading audio: audib=%s page=%s position=%s audio_name=%s delay=%s",
+            self.audib,
+            self.current_page_number,
+            self.position,
+            audio_name,
+            delay,
         )
+        try:
+            audio_bytes = read_audib_audio(self.audib, audio_name)
+            subtitle = self._current_reading_subtitle()
+            log.debug("Reading audio loaded: bytes=%s subtitle_length=%s", len(audio_bytes), len(subtitle))
+            self.audio_controller.play(
+                audio_bytes,
+                delay=delay,
+                subtitle=subtitle,
+            )
+            log.debug("Reading audio handed to AudioController: is_playing=%s", self.audio_controller.is_playing)
+        except Exception:
+            log.exception("Failed to prepare or start reading audio for %s", audio_name)
+            raise
 
     def _get_id(self, data: str) -> int:
         name, id = data.split("_")
@@ -819,10 +888,20 @@ class Cardinal:
 
     def _audio_repeater(self, repeat_command: function, repeat_delay: float, audio_delay: float, audio_path: Path, is_wav: bool, state_change: CardinalState = None, audio_subtitle: str = "", audio_subtitle_phrases: list[str] | None = None, audio_subtitle_phrase_durations: tuple[float, ...] | None = None):
         current_thread = threading.current_thread()
+        log.debug(
+            "Scheduling audio repeater: audio_type=%s is_wav=%s state=%s state_change=%s initial_delay=%s repeat_delay=%s",
+            type(audio_path).__name__,
+            is_wav,
+            self.state,
+            state_change,
+            audio_delay,
+            repeat_delay,
+        )
         with self._repeat_lock:
             if current_thread in self._repeat_threads:
                 cancel_event = self._repeat_cancel_event
             elif self._repeat_threads:
+                log.warning("Not starting audio repeater; another repeater is active.")
                 return
             else:
                 cancel_event = threading.Event()
@@ -832,6 +911,7 @@ class Cardinal:
             replay_event = self._repeat_replay_event
 
             if cancel_event.is_set():
+                log.debug("Not starting audio repeater because its cancel event is already set.")
                 return
 
             def _repeat():
@@ -842,6 +922,7 @@ class Cardinal:
                         def on_playback_complete():
                             if state_change is not None:
                                 self.state = state_change
+                            log.debug("Repeater audio completed; state=%s", self.state)
                             playback_finished.set()
 
                         if cancel_event.is_set():
@@ -857,6 +938,8 @@ class Cardinal:
                             subtitle_phrases=audio_subtitle_phrases,
                             subtitle_phrase_durations=audio_subtitle_phrase_durations,
                         )
+                        if not self.audio_controller.is_playing:
+                            log.error("Repeater audio did not start: audio_type=%s is_wav=%s", type(audio_path).__name__, is_wav)
                         return self.audio_controller.is_playing
 
                 try:
@@ -871,6 +954,7 @@ class Cardinal:
                     while True:
                         while not playback_finished.wait(0.1):
                             if cancel_event.is_set():
+                                log.debug("Audio repeater cancelled while waiting for playback completion.")
                                 return
                             if replay_event.is_set():
                                 replay_event.clear()
@@ -891,9 +975,13 @@ class Cardinal:
                                 return
                             repeat_command()
                             return
+                except Exception:
+                    log.exception("Audio repeater failed: audio_type=%s is_wav=%s", type(audio_path).__name__, is_wav)
+                    raise
                 finally:
                     with self._repeat_lock:
                         self._repeat_threads.discard(threading.current_thread())
+                    log.debug("Audio repeater thread finished.")
 
             repeat_thread = threading.Thread(target=_repeat, daemon=True)
             self._repeat_threads.add(repeat_thread)

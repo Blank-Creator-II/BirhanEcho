@@ -72,44 +72,87 @@ _queue = queue.Queue()
 
 def audio_receiver(indata, frames, time, status): # captures microphone input.
     if status:
-        log.warning(f"Audio status warning: {status}", flush=True)
+        log.warning("Microphone callback status: %s (frames=%s)", status, frames)
 
     _queue.put(bytes(indata))
 
 def clear_audio_queue():
+    cleared_count = 0
     while not _queue.empty():
         try:
             _queue.get_nowait()
+            cleared_count += 1
         except queue.Empty:
             break
+    log.debug("Cleared %s pending microphone audio chunks.", cleared_count)
 
 def listen_for_commands(cardinal: "Cardinal", stop_event: threading.Event):
     sample_rate = 16000  # needs 16kHz audio
+    previous_state = None
+    previous_partial = ""
 
     # Open stream explicitly at 16kHz mono
-    with sounddevice.RawInputStream(samplerate=sample_rate, blocksize=4000, dtype='int16', channels=1, callback=audio_receiver):
-        log.info(f"Voice engine active at {sample_rate}Hz. Listening for commands...")
-        
-        while not stop_event.is_set():
-                    try:
-                        # Use a timeout so the loop wakes up and checks stop_event regularly
-                        data = _queue.get(timeout=0.2)
-                    except queue.Empty:
-                        continue
+    log.info("Opening microphone stream: samplerate=%s blocksize=%s dtype=int16 channels=1", sample_rate, 4000)
+    try:
+        with sounddevice.RawInputStream(samplerate=sample_rate, blocksize=4000, dtype='int16', channels=1, callback=audio_receiver):
+            log.info("Voice engine active at %sHz. Listening for commands...", sample_rate)
 
-                    if stop_event.is_set():
-                        break
+            while not stop_event.is_set():
+                try:
+                    # Use a timeout so the loop wakes up and checks stop_event regularly
+                    data = _queue.get(timeout=0.2)
+                except queue.Empty:
+                    continue
 
-                    # Select recognizer instance based on current Cardinal state
-                    is_waiting_for_value = (cardinal.state == CardinalState.WAITING_FOR_NUMBER or cardinal.state == CardinalState.WAITING_FOR_BOOK or cardinal.state == CardinalState.WAITING_FOR_OPTION or cardinal.state == CardinalState.WAITING_FOR_PATH)
-                    if is_waiting_for_value:
-                        active_recognizer = number_recognizer
+                if stop_event.is_set():
+                    break
+
+                current_state = cardinal.state
+                if current_state != previous_state:
+                    log.info("Speech recognizer state changed: %s", current_state)
+                    previous_state = current_state
+                    previous_partial = ""
+
+                # Select recognizer instance based on current Cardinal state
+                is_waiting_for_value = current_state in (
+                    CardinalState.WAITING_FOR_NUMBER,
+                    CardinalState.WAITING_FOR_BOOK,
+                    CardinalState.WAITING_FOR_OPTION,
+                    CardinalState.WAITING_FOR_PATH,
+                )
+                recognizer_name = "number" if is_waiting_for_value else "commands"
+                active_recognizer = number_recognizer if is_waiting_for_value else command_recognizer
+
+                if active_recognizer.AcceptWaveform(data):
+                    result = json.loads(active_recognizer.Result())
+                    text = result.get("text", "").strip()
+                    log.info(
+                        "Vosk final result: state=%s recognizer=%s text=%r result=%s",
+                        current_state,
+                        recognizer_name,
+                        text,
+                        result,
+                    )
+                    previous_partial = ""
+
+                    if text and text != "[unk]":
+                        log.debug("Dispatching recognized speech to Cardinal: %r", text)
+                        cardinal.receive_command(text)
                     else:
-                        active_recognizer = command_recognizer
-
-                    if active_recognizer.AcceptWaveform(data):
-                        result = json.loads(active_recognizer.Result())
-                        text = result.get("text", "").strip()
-                        
-                        if text and text != "[unk]":
-                            cardinal.receive_command(text)
+                        log.debug("Ignoring empty or unknown Vosk result: %r", text)
+                else:
+                    partial_result = json.loads(active_recognizer.PartialResult())
+                    partial_text = partial_result.get("partial", "").strip()
+                    if partial_text and partial_text != previous_partial:
+                        log.debug(
+                            "Vosk partial result: state=%s recognizer=%s text=%r",
+                            current_state,
+                            recognizer_name,
+                            partial_text,
+                        )
+                    previous_partial = partial_text
+    except Exception:
+        log.exception("Speech input stream or recognition loop failed.")
+        raise
+    finally:
+        log.info("Speech input loop stopped: stop_requested=%s", stop_event.is_set())
