@@ -3,6 +3,7 @@ import os
 import json
 import time
 import logging
+from typing import Callable, Optional
 from logging.handlers import RotatingFileHandler
 import threading
 from pathlib import Path
@@ -28,7 +29,7 @@ from webview import Window
 from word2number import w2n
 from singleton import SETTINGS
 from cardinal_state import CardinalState
-from Player.speech_manager import listen_for_commands
+from Player.speech_manager import clear_audio_queue, listen_for_commands
 from Player.audio_manager import AudioController
 from Player.audib_manager import *
 from Player.audib_manifest_model import PageData, TextID
@@ -223,7 +224,8 @@ class Cardinal:
                                         log.debug("Processing textbook: %s", file)
                                         processor.process_textbook()
                                         self.create_audib(Path("Books", name.removesuffix(".pdf"), "json"))
-                                        self.load_audib(Path("Data", "Books", f"{name.removesuffix(".pdf")}.audib"))
+                                        clear_audio_queue()
+                                        self.load_audib(Path("Data", "Books", f"{name.removesuffix('.pdf')}.audib"))
                                         return
                                     else:
                                         destination_path = Path("Data", "Books")
@@ -582,7 +584,7 @@ class Cardinal:
             # checks if the current block is not the first index
             if (current_block - 1) != 0:
                 self.position.block_id = f"block_{current_block - 1}"
-            else:
+            elif not self._move_to_adjacent_page(-1):
                 log.debug("Audib finished")
                 return
 
@@ -611,7 +613,7 @@ class Cardinal:
             # checks if the current audio block is not the last block
             if (blocks_length - 1) != (current_block - 1):
                 self.position.block_id = f"block_{current_block + 1}"
-            else:
+            elif not self._move_to_adjacent_page(1):
                 log.debug("Audib finished")
                 return
         
@@ -886,7 +888,26 @@ class Cardinal:
         name, id = data.split("_")
         return int(id)
 
-    def _audio_repeater(self, repeat_command: function, repeat_delay: float, audio_delay: float, audio_path: Path, is_wav: bool, state_change: CardinalState = None, audio_subtitle: str = "", audio_subtitle_phrases: list[str] | None = None, audio_subtitle_phrase_durations: tuple[float, ...] | None = None):
+    def _move_to_adjacent_page(self, direction: int) -> bool:
+        pages = sorted(self.manifest)
+        page_index = pages.index(self.current_page_number) + direction
+
+        while 0 <= page_index < len(pages):
+            page_number = pages[page_index]
+            page = self.manifest[page_number]
+            if page.reading_flow:
+                self.current_page_number = page_number
+                block_number = 1 if direction > 0 else len(page.reading_flow)
+                self.position = TextID(
+                    page_number=page.page_number,
+                    block_id=f"block_{block_number}",
+                )
+                return True
+            page_index += direction
+
+        return False
+
+    def _audio_repeater(self, repeat_command: Callable, repeat_delay: float, audio_delay: float, audio_path: Path, is_wav: bool, state_change: CardinalState = None, audio_subtitle: str = "", audio_subtitle_phrases: list[str] | None = None, audio_subtitle_phrase_durations: tuple[float, ...] | None = None):
         current_thread = threading.current_thread()
         log.debug(
             "Scheduling audio repeater: audio_type=%s is_wav=%s state=%s state_change=%s initial_delay=%s repeat_delay=%s",

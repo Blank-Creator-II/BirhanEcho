@@ -68,13 +68,30 @@ command_recognizer = KaldiRecognizer(model, 16000, json.dumps(allowed_commands))
 # open recognizer for numeric inputs
 number_recognizer = KaldiRecognizer(model, 16000)
 
-_queue = queue.Queue()
+_AUDIO_QUEUE_MAX_CHUNKS = 8
+_queue = queue.Queue(maxsize=_AUDIO_QUEUE_MAX_CHUNKS)
+_dropped_audio_chunks = 0
 
 def audio_receiver(indata, frames, time, status): # captures microphone input.
+    global _dropped_audio_chunks
     if status:
         log.warning("Microphone callback status: %s (frames=%s)", status, frames)
 
-    _queue.put(bytes(indata))
+    audio_chunk = bytes(indata)
+    try:
+        _queue.put_nowait(audio_chunk)
+    except queue.Full:
+        try:
+            _queue.get_nowait()
+        except queue.Empty:
+            pass
+        _queue.put_nowait(audio_chunk)
+        _dropped_audio_chunks += 1
+        if _dropped_audio_chunks == 1 or _dropped_audio_chunks % 100 == 0:
+            log.warning(
+                "Microphone queue full; dropped oldest audio chunks to stay current: total_dropped=%s",
+                _dropped_audio_chunks,
+            )
 
 def clear_audio_queue():
     cleared_count = 0
@@ -84,7 +101,11 @@ def clear_audio_queue():
             cleared_count += 1
         except queue.Empty:
             break
-    log.debug("Cleared %s pending microphone audio chunks.", cleared_count)
+    log.info(
+        "Cleared %s pending microphone audio chunks; total_overflow_drops=%s",
+        cleared_count,
+        _dropped_audio_chunks,
+    )
 
 def listen_for_commands(cardinal: "Cardinal", stop_event: threading.Event):
     sample_rate = 16000  # needs 16kHz audio
