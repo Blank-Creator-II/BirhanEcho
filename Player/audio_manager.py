@@ -312,6 +312,9 @@ class AudioController:
     def get_current_volume_level(self) -> float:
         return self.get_current_audio_levels()[0]
 
+    def reload_static_subtitle(self):
+        self._static_subtitles = self._load_static_subtitles()
+
     @property
     def subtitle(self) -> str:
         with self._lock:
@@ -465,7 +468,7 @@ class AudioController:
             )
             titles_root = audio_root / "book_titles" / "titles"
             for index, title in enumerate(book_titles, start=1):
-                add_subtitle(titles_root / f"{index}.wav", Path(title).stem)
+                add_subtitle(titles_root / f"{index}.wav", f"Book {index}: " + Path(title).stem)
 
         log.debug("Loaded subtitles for %d static audio files.", len(subtitles))
         return subtitles

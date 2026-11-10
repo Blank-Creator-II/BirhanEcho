@@ -225,6 +225,7 @@ class Cardinal:
                                         processor.process_textbook()
                                         self.create_audib(Path("Books", name.removesuffix(".pdf"), "json"))
                                         clear_audio_queue()
+                                        self.audio_controller.reload_static_subtitle() # make subtitle for it
                                         self.load_audib(Path("Data", "Books", f"{name.removesuffix('.pdf')}.audib"))
                                         return
                                     else:
@@ -233,6 +234,7 @@ class Cardinal:
                                         shutil.copy2(file, destination_path) # copy to always make it available from menu
                                         log.debug("Copied file %s to %s", file, destination_path)
                                         generate_book_title_audio() # make title audio for it
+                                        self.audio_controller.reload_static_subtitle() # make subtitle for it
                                         self.load_audib(Path("Data", "Books", name))
                                         return
                                 else:

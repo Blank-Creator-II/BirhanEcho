@@ -218,7 +218,7 @@ def generate_book_title_audio():
             out_path = Path("Data", "Cardinal Audios", "book_titles", "titles", f"{idx}.wav")
             out_path.parent.mkdir(parents=True, exist_ok=True)
             with wave.open(str(out_path), "wb") as wav_file:
-                _synthesize_wav(title.removesuffix(".audib"), wav_file, str(out_path))
+                _synthesize_wav(f"Book {idx}. " + title.removesuffix(".audib"), wav_file, str(out_path))
 
 def generate_dynamic_audio(phrases: list[str], pause_seconds: float = 0.5, sample_rate: int = 22050,) -> tuple[bytes, tuple[float, ...]]:
     log.info(
